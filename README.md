@@ -1,4 +1,5 @@
 1. Am clonat proiectul din Git Hub
+
 $ git clone https://github.com/DanielK016/Astral.git
 Cloning into 'Astral'...
 remote: Enumerating objects: 6, done.
