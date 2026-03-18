@@ -9,9 +9,11 @@ remote: Total 6 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
 Receiving objects: 100% (6/6), done.
 
 2. Am deschis proiectul
+
 $ cd Astral
 
 3. Am facut un commit
+
 $ echo "# Proiect" > README.md
 
 $ git add .
@@ -22,6 +24,7 @@ $ git commit -m "Initial commit"
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 4. Am adaugat commitul
+
 $ git push origin main
 Enumerating objects: 5, done.
 Counting objects: 100% (5/5), done.
@@ -31,6 +34,7 @@ To https://github.com/DanielK016/Astral.git
    b9f7fe5..20813fc  main -> main
 
 5. Am creat branch-ul BackEnd
+
 $ git checkout -b BackEnd
 Switched to a new branch 'BackEnd'
 
@@ -45,6 +49,7 @@ To https://github.com/DanielK016/Astral.git
 branch 'BackEnd' set up to track 'origin/BackEnd'.
 
 6. Am creat branch-ul FrontEnd
+
 $ git checkout -b FrontEnd
 Switched to a new branch 'FrontEnd'
 
@@ -59,6 +64,7 @@ To https://github.com/DanielK016/Astral.git
 branch 'FrontEnd' set up to track 'origin/FrontEnd'.
 
 7. Am creat branch-ul Tester
+
 $ git checkout -b Tester
 Switched to a new branch 'Tester'
 
@@ -73,6 +79,7 @@ To https://github.com/DanielK016/Astral.git
 branch 'Tester' set up to track 'origin/Tester'.
 
 8. Am creat branch-ul Git
+
 $ git checkout -b Git
 Switched to a new branch 'Git'
 
