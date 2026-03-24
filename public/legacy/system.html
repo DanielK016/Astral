@@ -1,0 +1,1872 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Astral Empires — System View</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #050510;
+      font-family: Arial, system-ui;
+    }
+
+    canvas {
+      display: block
+    }
+
+    .pl-label {
+      color: #dff3ff;
+      font-size: 12px;
+      white-space: nowrap;
+      text-shadow: 0 0 14px rgba(0, 160, 255, .35);
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.18;
+    }
+
+    .pl-label .planet-name {
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .pl-label .resource-row {
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .pl-label .res-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      color: #dff3ff;
+      font-size: 11px;
+      opacity: .95;
+    }
+
+    .pl-label .res-icon {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      display: inline-block;
+      filter: drop-shadow(0 0 6px rgba(85, 210, 255, .35));
+    }
+
+    .exit-label {
+      color: #e7f7ff;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+      text-shadow: 0 0 16px rgba(0, 160, 255, .42);
+    }
+
+    .exit-label.arrow-label {
+      font-weight: 700;
+      letter-spacing: .02em;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 2px;
+    }
+    /* Panela fleets */
+    
+    .fleet-label {
+      color: #cfeaff;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: .80;
+      pointer-events: none;
+      text-shadow: 0 0 14px rgba(0, 160, 255, .35);
+    }
+
+    .fleet-label.enemy {
+      color: #ffb7b7;
+      text-shadow: 0 0 14px rgba(255, 90, 90, .42);
+    }
+
+    #planet-context {
+      position: fixed;
+      z-index: 90;
+      min-width: 280px;
+      max-width: 340px;
+      display: none;
+      background: rgba(8, 13, 24, .94);
+      border: 1px solid rgba(92, 210, 255, .34);
+      border-radius: 16px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, .55), 0 0 28px rgba(40, 160, 255, .12);
+      backdrop-filter: blur(12px);
+      color: #e7f6ff;
+      padding: 14px 14px 12px;
+    }
+
+    #planet-context.visible {
+      display: block;
+    }
+
+    #planet-context .ctx-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f5fbff;
+      margin-bottom: 2px;
+    }
+
+    #planet-context .ctx-type {
+      font-size: 12px;
+      color: #8fb8ca;
+      text-transform: capitalize;
+      margin-bottom: 10px;
+    }
+
+    #planet-context .ctx-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 10px;
+      margin-bottom: 12px;
+    }
+
+    #planet-context .ctx-item {
+      font-size: 12px;
+      color: #9ec0d4;
+    }
+
+    #planet-context .ctx-item b {
+      display: block;
+      color: #f0f7ff;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    #planet-context .ctx-yields {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(92, 210, 255, .18);
+      background: rgba(0, 0, 0, .28);
+      margin-bottom: 12px;
+    }
+
+    #planet-context .ctx-yields-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffc93c;
+      margin-bottom: 8px;
+    }
+
+    #planet-context .ctx-resources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    #planet-context .ctx-res {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .38);
+      border: 1px solid rgba(92, 210, 255, .16);
+      font-size: 12px;
+    }
+
+    #planet-context .ctx-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    #planet-context .ctx-btn {
+      appearance: none;
+      border: 1px solid rgba(82, 220, 255, .55);
+      background: transparent;
+      color: #7ceaff;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    #planet-context .ctx-btn:hover {
+      background: rgba(0, 140, 200, .14);
+      box-shadow: 0 0 16px rgba(82, 220, 255, .12);
+    }
+
+
+    #scene-transition {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 38%, rgba(18, 45, 82, .22), rgba(1, 4, 10, .96));
+      opacity: 0;
+      visibility: hidden;
+      z-index: 120;
+      transition: opacity .42s ease, visibility .42s ease;
+      pointer-events: none;
+    }
+
+    #scene-transition.visible {
+      opacity: 1;
+      visibility: visible;
+        pointer-events: none;
+    }
+
+    #scene-transition .label {
+      color: #eff7ff;
+      font-size: 12px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+    }
+
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <div id="planet-context" aria-hidden="true"></div>
+  <div id="scene-transition"><div class="label">Focusing Target</div></div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const qs = new URLSearchParams(location.search);
+    const sessionId = parseInt(qs.get('session') || '0', 10);
+    const playerId = parseInt(qs.get('player') || '0', 10);
+    const systemId = parseInt(qs.get('system') || '0', 10);
+    const SYSTEM_CAMERA_KEY = `astral.system.camera.${sessionId}.${playerId}.${systemId}`;
+
+    function saveSystemCamera() {
+      try {
+        const payload = {
+          camera: {
+            x: camera.position.x,
+            y: camera.position.y,
+            z: camera.position.z
+          },
+          target: {
+            x: controls.target.x,
+            y: controls.target.y,
+            z: controls.target.z
+          }
+        };
+        localStorage.setItem(SYSTEM_CAMERA_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.warn('Could not save system camera', e);
+      }
+    }
+
+    function loadSystemCamera() {
+      try {
+        const raw = localStorage.getItem(SYSTEM_CAMERA_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('Could not load system camera', e);
+        return null;
+      }
+    }
+
+    function restoreSystemCamera() {
+      const saved = loadSystemCamera();
+      if (!saved?.camera || !saved?.target) return false;
+
+      const cx = Number(saved.camera.x);
+      const cy = Number(saved.camera.y);
+      const cz = Number(saved.camera.z);
+      const tx = Number(saved.target.x);
+      const ty = Number(saved.target.y);
+      const tz = Number(saved.target.z);
+
+      if (
+        !Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cz) ||
+        !Number.isFinite(tx) || !Number.isFinite(ty) || !Number.isFinite(tz)
+      ) {
+        return false;
+      }
+
+      camera.position.set(cx, cy, cz);
+      controls.target.set(tx, ty, tz);
+      controls.update();
+      return true;
+    }
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    document.body.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.left = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060914);
+    scene.fog = new THREE.FogExp2(0x060914, 0.00145);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2500);
+    camera.position.set(0, 64, 146);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 40;
+    controls.maxDistance = 420;
+    controls.addEventListener('change', saveSystemCamera);
+    window.addEventListener('beforeunload', saveSystemCamera);
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.34, 0.22, 1.08));
+
+    scene.add(new THREE.AmbientLight(0x8cc8ff, 0.40));
+    const sunLight = new THREE.PointLight(0xffffff, 1.25, 980);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+    const fillLight = new THREE.DirectionalLight(0x8fc9ff, 0.52);
+    fillLight.position.set(25, 35, 18);
+    scene.add(fillLight);
+
+    const bgCount = 4200;
+    const bgGeom = new THREE.BufferGeometry();
+    const bgPos = new Float32Array(bgCount * 3);
+    for (let i = 0; i < bgCount; i++) {
+      const r = 420 + Math.random() * 900;
+      const t = Math.random() * Math.PI * 2;
+      const p = Math.acos(2 * Math.random() - 1);
+      bgPos[i * 3 + 0] = r * Math.sin(p) * Math.cos(t);
+      bgPos[i * 3 + 1] = r * Math.cos(p);
+      bgPos[i * 3 + 2] = r * Math.sin(p) * Math.sin(t);
+    }
+    bgGeom.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+    scene.add(new THREE.Points(bgGeom, new THREE.PointsMaterial({ color: 0xc7e2ff, size: 1.05, transparent: true, opacity: 0.68 })));
+
+    function makeCanvasTexture(drawFn, size = 256) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      drawFn(ctx, size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    const starAuraTex = makeCanvasTexture((ctx, s) => {
+      const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.24, 'rgba(255,255,255,0.58)');
+      g.addColorStop(0.58, 'rgba(120,220,255,0.14)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    }, 256);
+
+    function planetTexture(type) {
+      const palette = {
+        terran: { base: [70, 145, 220], alt: [60, 170, 95], extra: [230, 225, 205] },
+        desert: { base: [198, 145, 88], alt: [155, 110, 62], extra: [225, 190, 120] },
+        ice: { base: [175, 210, 245], alt: [120, 150, 205], extra: [240, 248, 255] },
+        ocean: { base: [55, 130, 225], alt: [40, 90, 180], extra: [120, 185, 255] },
+        gas: { base: [75, 150, 220], alt: [35, 80, 145], extra: [140, 210, 255] },
+        volcanic: { base: [120, 55, 45], alt: [210, 95, 35], extra: [255, 185, 80] },
+        biolum: { base: [60, 180, 150], alt: [35, 105, 125], extra: [130, 255, 210] },
+        unknown: { base: [120, 120, 120], alt: [90, 90, 90], extra: [170, 170, 170] },
+      };
+
+      const cfg = palette[type] || palette.unknown;
+
+      return makeCanvasTexture((ctx, s) => {
+        ctx.clearRect(0, 0, s, s);
+
+        // baza
+        ctx.fillStyle = `rgb(${cfg.base[0]}, ${cfg.base[1]}, ${cfg.base[2]})`;
+        ctx.fillRect(0, 0, s, s);
+
+        // pattern diferit pe tip
+        if (type === 'gas') {
+          for (let y = 0; y < s; y += 12) {
+            const wobble = Math.sin(y * 0.04) * 12;
+            ctx.fillStyle = `rgba(${cfg.alt[0]}, ${cfg.alt[1]}, ${cfg.alt[2]}, 0.55)`;
+            ctx.fillRect(0, y + wobble, s, 8);
+
+            ctx.fillStyle = `rgba(${cfg.extra[0]}, ${cfg.extra[1]}, ${cfg.extra[2]}, 0.22)`;
+            ctx.fillRect(0, y + 4 + wobble, s, 4);
+          }
+        } else {
+          for (let i = 0; i < 180; i++) {
+            const x = Math.random() * s;
+            const y = Math.random() * s;
+            const r = 6 + Math.random() * 26;
+
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+
+            if (type === 'terran') {
+              g.addColorStop(0, `rgba(${cfg.alt[0]}, ${cfg.alt[1]}, ${cfg.alt[2]}, 0.75)`);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (type === 'desert') {
+              g.addColorStop(0, `rgba(${cfg.extra[0]}, ${cfg.extra[1]}, ${cfg.extra[2]}, 0.34)`);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (type === 'ice') {
+              g.addColorStop(0, `rgba(${cfg.extra[0]}, ${cfg.extra[1]}, ${cfg.extra[2]}, 0.55)`);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (type === 'volcanic') {
+              g.addColorStop(0, `rgba(${cfg.alt[0]}, ${cfg.alt[1]}, ${cfg.alt[2]}, 0.85)`);
+              g.addColorStop(0.45, `rgba(${cfg.extra[0]}, ${cfg.extra[1]}, ${cfg.extra[2]}, 0.35)`);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+            } else {
+              g.addColorStop(0, `rgba(${cfg.alt[0]}, ${cfg.alt[1]}, ${cfg.alt[2]}, 0.45)`);
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+            }
+
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // nori / pete luminoase
+        for (let i = 0; i < 24; i++) {
+          const x = Math.random() * s;
+          const y = Math.random() * s;
+          const r = 18 + Math.random() * 42;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, 'rgba(255,255,255,0.16)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // umbrire de margine
+        const edge = ctx.createRadialGradient(s / 2, s / 2, s * 0.18, s / 2, s / 2, s * 0.52);
+        edge.addColorStop(0, 'rgba(255,255,255,0.02)');
+        edge.addColorStop(0.72, 'rgba(0,0,0,0)');
+        edge.addColorStop(1, 'rgba(0,0,0,0.50)');
+        ctx.fillStyle = edge;
+        ctx.fillRect(0, 0, s, s);
+      }, 1024);
+    }
+    function atmosphereTex(color = 'rgba(120,220,255,0.35)') {
+      return makeCanvasTexture((ctx, s) => {
+        const g = ctx.createRadialGradient(s / 2, s / 2, s * 0.28, s / 2, s / 2, s * 0.50);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(0.5, color);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, s, s);
+      }, 256);
+    }
+    function planetBorderTexture() {
+  return makeCanvasTexture((ctx, s) => {
+    ctx.clearRect(0, 0, s, s);
+
+    const cx = s / 2;
+    const cy = s / 2;
+
+    const outer = s * 0.495;
+    const inner = s * 0.455;
+
+    const g = ctx.createRadialGradient(cx, cy, inner * 0.92, cx, cy, outer);
+    g.addColorStop(0.00, 'rgba(0,0,0,0)');
+    g.addColorStop(0.70, 'rgba(0,0,0,0)');
+    g.addColorStop(0.88, 'rgba(77,184,255,0.18)');
+    g.addColorStop(0.94, 'rgba(77,184,255,0.42)');
+    g.addColorStop(1.00, 'rgba(77,184,255,0.00)');
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, 0, Math.PI * 2);
+    ctx.fill();
+  }, 512);
+}
+
+const PLANET_BORDER_TEX = planetBorderTexture();
+function measureObjectRadius(object) {
+  const box = new THREE.Box3().setFromObject(object);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return Math.max(size.x, size.y, size.z) * 0.5;
+}
+function createPlanetBorder(root) {
+  const borderGroup = new THREE.Group();
+
+  root.traverse((child) => {
+    if (!child.isMesh || !child.geometry) return;
+    if (child.userData?.isPlanetBorder) return;
+
+   
+    let parent = child;
+    while (parent) {
+      if (parent.userData?.isFactory) return;
+      parent = parent.parent;
+    }
+
+    const borderMat = new THREE.MeshBasicMaterial({
+      color: 0x4db8ff,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.BackSide,
+      depthWrite: false
+    });
+
+    const borderMesh = new THREE.Mesh(child.geometry.clone(), borderMat);
+
+    borderMesh.position.copy(child.position);
+    borderMesh.rotation.copy(child.rotation);
+    borderMesh.scale.copy(child.scale).multiplyScalar(1.015);
+    borderMesh.userData.isPlanetBorder = true;
+
+    borderGroup.add(borderMesh);
+  });
+
+  return borderGroup;
+}
+    function arrowTex() {
+      return makeCanvasTexture((ctx, s) => {
+        ctx.clearRect(0, 0, s, s);
+        ctx.translate(s / 2, s / 2);
+        ctx.fillStyle = 'rgba(95,210,255,0.95)';
+        ctx.shadowColor = 'rgba(95,210,255,0.65)';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.moveTo(-22, -14);
+        ctx.lineTo(26, 0);
+        ctx.lineTo(-22, 14);
+        ctx.closePath();
+        ctx.fill();
+      }, 128);
+    }
+
+    function hexToColor(hex) {
+      try { return new THREE.Color(hex); }
+      catch { return new THREE.Color(0xffdd99); }
+    }
+
+    const star = new THREE.Group();
+    scene.add(star);
+
+    const orbitGroup = new THREE.Group();
+    scene.add(orbitGroup);
+    const planetGroup = new THREE.Group();
+    scene.add(planetGroup);
+    const exitGroup = new THREE.Group();
+    scene.add(exitGroup);
+    const fleetGroup = new THREE.Group();
+    scene.add(fleetGroup);
+
+    const MODEL_PRESETS = {
+      humans: {
+        ships: {
+          lite: { glb: '../models/DOX_SHIP_SPACE_3D/Human/human_lite/lite.glb' },
+          medium: { glb: '../models/DOX_SHIP_SPACE_3D/Human/human_medium/medium.glb' },
+          heavy: { glb: '../models/DOX_SHIP_SPACE_3D/Human/human_heavy/heavy.glb' },
+        },
+      },
+      lorians: {
+        ships: {
+          lite: { glb: '../models/DOX_SHIP_SPACE_3D/Lorians/lorians_lite/lite.glb' },
+          medium: { glb: '../models/DOX_SHIP_SPACE_3D/Lorians/lorians_medium/medium.glb' },
+          heavy: { glb: '../models/DOX_SHIP_SPACE_3D/Lorians/lorians_heavy/heavy.glb' },
+        },
+      },
+      zeth: {
+        ships: {
+          lite: { glb: '../models/DOX_SHIP_SPACE_3D/ROI/Roi_lite/lite.glb' },
+          medium: { glb: '../models/DOX_SHIP_SPACE_3D/ROI/Roi_medium/medium.glb' },
+          heavy: { glb: '../models/DOX_SHIP_SPACE_3D/ROI/Roi_heavy/heavy.glb' },
+        },
+      },
+    };
+
+    const PLANET_MODEL_MAP = {
+      terran: '../models/DOX_TEXTUR_PLANET_3D/terran_planet_model.glb',
+      desert: '../models/DOX_TEXTUR_PLANET_3D/desert_planet_model.glb',
+      ice: '../models/DOX_TEXTUR_PLANET_3D/ice_planet_model.glb',
+      ocean: '../models/DOX_TEXTUR_PLANET_3D/ocean_planet_model.glb',
+      gas: '../models/DOX_TEXTUR_PLANET_3D/gas_planet_model.glb',
+      volcanic: '../models/DOX_TEXTUR_PLANET_3D/vulcanic_planet_model.glb',
+      vulcanic: '../models/DOX_TEXTUR_PLANET_3D/vulcanic_planet_model.glb',
+      biolum: '../models/DOX_TEXTUR_PLANET_3D/biolum_planet_model.glb',
+    };
+
+    const FACTORY_MODEL_MAP = {
+      zavod_planet: '../models/DOX_ZAVOD_TYPE_3D/zavod_planet.glb',
+      zavod_gas: '../models/DOX_ZAVOD_TYPE_3D/zavod_gas.glb',
+    };
+
+    const CAPITAL_PLANET_MODEL_MAP = {
+      humans: { obj: '../models/DOX_CAPITAL_PLANET_3D/Planet_Human_Cap/human_capital.obj' },
+      lorians: { obj: '../models/DOX_CAPITAL_PLANET_3D/Planet_ZAB_Human_Cap/zab_human_capital.obj' },
+      zeth: { obj: '../models/DOX_CAPITAL_PLANET_3D/Planet_Roi_Cap/roi_capital.obj' },
+    };
+
+    const SUN_MODEL_MAP = {
+      red: '../models/DOX_TEXTUR_SUN_3D/redStar.glb',
+      yellow: '../models/DOX_TEXTUR_SUN_3D/yellowStar.glb',
+      blue: '../models/DOX_TEXTUR_SUN_3D/blueStar.glb',
+    };
+
+
+    const modelTemplateCache = new Map();
+    const gltfTemplateCache = new Map();
+    const defaultShipVariants = ['lite', 'medium', 'heavy'];
+    const planetContextEl = document.getElementById('planet-context');
+
+    let planets = [];
+    let exits = [];
+    let fleets3d = [];
+    let fleetMotion = [];
+    let systemPos = { x: 0, y: 0, z: 0 };
+    let selectedPlanet = null;
+    let selectedFleetId = null;
+    let planetsCount = 0;
+    let rotationMap = new Map();
+    let currentSystemOwnerRaceKey = null;
+    let planetDataById = new Map();
+    let starSpinObject = null;
+    let starVisualRadius = 22;
+    let currentSystemEncounter = null;
+    let cameraFlight = null;
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+function startSceneTransition(label = 'Entering System') {
+  const overlay = document.getElementById('scene-transition');
+  const labelEl = overlay?.querySelector('.label');
+
+  if (labelEl) labelEl.textContent = label;
+  overlay?.classList.add('visible');
+
+  setTimeout(() => {
+    overlay?.classList.remove('visible');
+  }, 5000);
+}
+    function focusObject(root, options = {}) {
+      if (!root) return;
+      const box = new THREE.Box3().setFromObject(root);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      box.getCenter(center);
+      box.getSize(size);
+      const radius = Math.max(size.x, size.y, size.z, 6);
+      const direction = camera.position.clone().sub(controls.target).normalize();
+      const distance = options.distance || Math.max(radius * 3.1, 26);
+      const startCamera = camera.position.clone();
+      const startTarget = controls.target.clone();
+      const endTarget = center.clone();
+      const endCamera = center.clone().add(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, radius * 0.42, 0));
+      cameraFlight = { start: performance.now(), duration: options.duration || 420, startCamera, startTarget, endCamera, endTarget };
+    }
+
+    function clearChildren(group) {
+      while (group.children.length) group.remove(group.children[0]);
+    }
+
+    function clearSystem() {
+      clearChildren(orbitGroup);
+      clearChildren(planetGroup);
+      clearChildren(exitGroup);
+      clearChildren(fleetGroup);
+      while (star.children.length) star.remove(star.children[0]);
+      planets = [];
+      exits = [];
+      fleets3d = [];
+      fleetMotion = [];
+      selectedPlanet = null;
+      selectedFleetId = null;
+      planetDataById = new Map();
+      starSpinObject = null;
+      currentSystemEncounter = null;
+      rotationMap.clear();
+      hidePlanetContext();
+    }
+
+    function addOrbit(r) {
+  const geo = new THREE.RingGeometry(r - 0.08, r + 0.08, 128);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x47bcff,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = Math.PI / 2;
+  orbitGroup.add(mesh);
+}
+
+    const resourceIconsSmol = {
+      science: "/assets/resources64x64/Energy_Credits.png",
+      energy: "/assets/resources64x64/Biomass.png",
+      unity: "/assets/resources64x64/Raw_Minerals.png",
+      minerals: "/assets/resources64x64/Dark_Matter.png",
+      rare_metals: "/assets/resources64x64/Ethereal_Dust.png",
+      exotic_gases: "/assets/resources64x64/Living_Crystal.png",
+      xenocultures: "/assets/resources64x64/Nano-Alloys.png",
+      influence: "/assets/resources64x64/Neural_Chips.png"
+    };
+
+    const resourceIconsLarge = {
+      science: "/assets/resources128x128/Energy_Credits.png",
+      energy: "/assets/resources128x128/Biomass.png",
+      unity: "/assets/resources128x128/Raw_Minerals.png",
+      minerals: "/assets/resources128x128/Dark_Matter.png",
+      rare_metals: "/assets/resources128x128/Ethereal_Dust.png",
+      exotic_gases: "/assets/resources128x128/Living_Crystal.png",
+      xenocultures: "/assets/resources128x128/Nano-Alloys.png",
+      influence: "/assets/resources128x128/Neural_Chips.png"
+    };
+
+    const resourceIconsOriginal = {
+      Biomass: "/assets/resourcesOriginal/Biomass.png",
+      Dark_Matter: "/assets/resourcesOriginal/Dark_Matter.png",
+      Energy_Credits: "/assets/resourcesOriginal/Energy_Credits.png",
+      Ethereal_Dust: "/assets/resourcesOriginal/Ethereal_Dust.png",
+      Living_Crystal: "/assets/resourcesOriginal/Living_Crystal.png",
+      Nano_Alloys: "/assets/resourcesOriginal/Nano-Alloys.png",
+      Neural_Chips: "/assets/resourcesOriginal/Neural_Chips.png",
+      Raw_Minerals: "/assets/resourcesOriginal/Raw_Minerals.png"
+    };
+
+    const RESOURCE_META = [
+      ['science', 'Energy Credits'],
+      ['energy', 'Biomass'],
+      ['unity', 'Raw Minerals'],
+      ['minerals', 'Dark Matter'],
+      ['rare_metals', 'Ethereal Dust'],
+      ['exotic_gases', 'Living Crystal'],
+      ['xenocultures', 'Nano Alloys'],
+      ['influence', 'Neural Chips'],
+    ];
+
+    function resourceMarkup(yields) {
+      if (!yields) return '<span class="res-item">?</span>';
+
+      const items = RESOURCE_META
+        .filter(([key]) => Number(yields[key] || 0) > 0)
+        .map(([key, label]) => `
+      <span class="res-item ${key}">
+        <img class="res-icon" src="${resourceIconsSmol[key]}" alt="${label}" title="${label}">
+        <span>${yields[key]}</span>
+      </span>
+    `);
+
+      return items.length ? items.join('') : '<span class="res-item">—</span>';
+    }
+
+    function getDir(path) {
+      const idx = path.lastIndexOf('/');
+      return idx >= 0 ? path.slice(0, idx + 1) : './';
+    }
+
+    function getFile(path) {
+      const idx = path.lastIndexOf('/');
+      return idx >= 0 ? path.slice(idx + 1) : path;
+    }
+
+    function cloneMaterial(mat, geometry) {
+      const cloned = (mat && typeof mat.clone === 'function') ? mat.clone() : new THREE.MeshStandardMaterial({ color: 0xd8ecff });
+      if ('vertexColors' in cloned) cloned.vertexColors = !!geometry.getAttribute('color');
+      if ('roughness' in cloned) cloned.roughness = cloned.roughness ?? 0.72;
+      if ('metalness' in cloned) cloned.metalness = cloned.metalness ?? 0.18;
+      if ('emissive' in cloned && !cloned.emissive) cloned.emissive = new THREE.Color(0x000000);
+      cloned.needsUpdate = true;
+      return cloned;
+    }
+    function normalizeShipVariant(variant) {
+      const value = String(variant || '').trim().toLowerCase();
+
+      if (value.includes('heavy')) return 'heavy';
+      if (value.includes('medium') || value.includes('mediu') || value.includes('med')) return 'medium';
+      if (
+        value.includes('lite') ||
+        value.includes('light') ||
+        value.includes('little') ||
+        value.includes('litle') ||
+        value.includes('litel') ||
+        value.includes('scout')
+      ) return 'lite';
+
+      return 'lite';
+    }
+
+    function styleImportedModel(root) {
+      root.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = false;
+        child.receiveShadow = false;
+        if (child.geometry && !child.geometry.attributes.normal) {
+          child.geometry.computeVertexNormals();
+        }
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map((m) => cloneMaterial(m, child.geometry));
+        } else {
+          child.material = cloneMaterial(child.material, child.geometry);
+        }
+      });
+      return root;
+    }
+
+    function deepCloneStyledObject(template) {
+      const clone = template.clone(true);
+      clone.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map((m) => (m && typeof m.clone === 'function') ? m.clone() : m);
+        } else if (typeof child.material.clone === 'function') {
+          child.material = child.material.clone();
+        }
+      });
+      return clone;
+    }
+
+    function fitObjectToSize(root, targetSize, { baseOnGround = false } = {}) {
+      const box = new THREE.Box3().setFromObject(root);
+      if (box.isEmpty()) return root;
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z, 0.0001);
+      const scale = targetSize / maxDim;
+      root.scale.multiplyScalar(scale);
+
+      const scaledBox = new THREE.Box3().setFromObject(root);
+      const center = new THREE.Vector3();
+      scaledBox.getCenter(center);
+      root.position.sub(center);
+
+      if (baseOnGround) {
+        const groundedBox = new THREE.Box3().setFromObject(root);
+        root.position.y -= groundedBox.min.y;
+      }
+      return root;
+    }
+function getPlanetVisualRadius(root) {
+  const box = new THREE.Box3();
+  const size = new THREE.Vector3();
+
+  box.setFromObject(root);
+  box.getSize(size);
+
+  return Math.max(size.x, size.y, size.z) * 0.5;
+}
+function applyPlanetHighlight(root, enabled) {
+  if (root.userData.planetBorder) {
+    root.remove(root.userData.planetBorder);
+
+    root.userData.planetBorder.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry?.dispose?.();
+        child.material?.dispose?.();
+      }
+    });
+
+    root.userData.planetBorder = null;
+  }
+
+  if (!enabled) return;
+
+  const border = createPlanetBorder(root);
+  root.add(border);
+  root.userData.planetBorder = border;
+}
+
+    function makeFallbackPlanet(p, radius) {
+      const geo = new THREE.SphereGeometry(radius, 64, 64);
+      const tex = planetTexture(p.type);
+
+      const mat = new THREE.MeshStandardMaterial({
+        map: tex,
+        color: 0xffffff,
+        metalness: 0.0,
+        roughness: 1.0,
+        emissive: 0x000000
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+
+      // test clar: să vedem sigur textura
+      console.log('makeFallbackPlanet ->', {
+        type: p.type,
+        radius,
+        texture: tex
+      });
+
+      return mesh;
+    }
+
+    function makeFallbackShip(size = 5) {
+      const geom = new THREE.ConeGeometry(size * 0.35, size, 4);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xe6f4ff, metalness: 0.25, roughness: 0.45, emissive: 0x021018 });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.rotation.x = Math.PI / 2;
+      return mesh;
+    }
+
+    function loadModelTemplate(def) {
+      if (def?.glb) return loadGltfTemplate(def.glb);
+
+      const key = `${def.obj}|${def.mtl || ''}`;
+      if (!modelTemplateCache.has(key)) {
+        const promise = new Promise((resolve) => {
+          const finish = (obj) => resolve(obj ? styleImportedModel(obj) : null);
+          const loadObjOnly = () => {
+            const loader = new OBJLoader();
+            loader.setPath(getDir(def.obj));
+            loader.load(getFile(def.obj), finish, undefined, () => resolve(null));
+          };
+
+          if (!def.mtl) {
+            loadObjOnly();
+            return;
+          }
+
+          const mtlLoader = new MTLLoader();
+          mtlLoader.setPath(getDir(def.mtl));
+          mtlLoader.setResourcePath(getDir(def.mtl));
+          mtlLoader.load(getFile(def.mtl), (materials) => {
+            try { materials.preload(); } catch { }
+            const objLoader = new OBJLoader();
+            objLoader.setPath(getDir(def.obj));
+            objLoader.setMaterials(materials);
+            objLoader.load(getFile(def.obj), finish, undefined, () => loadObjOnly());
+          }, undefined, () => loadObjOnly());
+        });
+        modelTemplateCache.set(key, promise);
+      }
+      return modelTemplateCache.get(key);
+    }
+
+    function loadGltfTemplate(path) {
+      if (!gltfTemplateCache.has(path)) {
+        const promise = new Promise((resolve) => {
+          const loader = new GLTFLoader();
+          loader.load(path, (gltf) => {
+            console.log('GLB loaded OK ->', path, gltf);
+            const sceneRoot = gltf?.scene ? styleImportedModel(gltf.scene) : null;
+            resolve(sceneRoot);
+          }, undefined, (err) => {
+            console.error('GLB load failed ->', path, err);
+            resolve(null);
+          });
+        });
+        gltfTemplateCache.set(path, promise);
+      }
+      return gltfTemplateCache.get(path);
+    }
+    function makeUnknownPlanet(radius) {
+      const geo = new THREE.SphereGeometry(radius, 48, 48);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x12385f,
+        roughness: 1.0,
+        metalness: 0.0,
+        emissive: 0x06111d
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: starAuraTex,
+        color: 0x2f7ac7,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      glow.scale.set(radius * 3.0, radius * 3.0, 1);
+
+      const root = new THREE.Group();
+      root.add(mesh);
+      root.add(glow);
+
+      return root;
+    }
+
+
+  async function createPlanetModelByType(type, radius, hasRings = false, options = {}) {
+  const normalized = (type === 'vulcanic') ? 'volcanic' : type;
+  const raceKey = options?.raceKey || null;
+  const capitalDef = options?.isCapital && raceKey ? CAPITAL_PLANET_MODEL_MAP[raceKey] : null;
+  const hiddenIdentity = !!options?.hiddenIdentity;
+
+  if (hiddenIdentity) {
+    return makeUnknownPlanet(radius);
+  }
+
+  let root = null;
+
+  if (capitalDef) {
+    const template = await loadModelTemplate(capitalDef);
+    if (template) {
+      root = deepCloneStyledObject(template);
+      fitObjectToSize(root, radius * 2.55);
+    }
+  }
+
+  if (!root && PLANET_MODEL_MAP[normalized]) {
+    const template = await loadGltfTemplate(PLANET_MODEL_MAP[normalized]);
+    if (template) {
+      root = deepCloneStyledObject(template);
+      fitObjectToSize(root, radius * 2.25);
+    }
+  }
+
+  if (!root) {
+    const mesh = makeFallbackPlanet({ type: normalized, has_rings: hasRings }, radius);
+    root = new THREE.Group();
+    root.add(mesh);
+  }
+
+ const visualRadius = measureObjectRadius(root);
+root.userData.visualRadius = visualRadius;
+
+if (hasRings) {
+  const ring = createAsteroidRing(radius);
+  ring.rotation.x = 0;
+  root.add(ring);
+}
+
+return root;
+}
+function createAsteroidRing(radius) {
+  const group = new THREE.Group();
+
+  const count = 320;
+  const inner = radius * 0.5;
+  const outer = radius * 0.3;
+
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const dist = THREE.MathUtils.lerp(inner, outer, Math.random());
+
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    const y = (Math.random() - 0.5) * 0.03;
+
+    const size = Math.random() * 0.025 + 0.01;
+
+    const geoOptions = [
+      new THREE.DodecahedronGeometry(size),
+      new THREE.IcosahedronGeometry(size),
+      new THREE.BoxGeometry(size, size, size)
+    ];
+    const geo = geoOptions[Math.floor(Math.random() * geoOptions.length)];
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xa79d8a,
+      roughness: 1,
+      metalness: 0.05
+    });
+
+    const rock = new THREE.Mesh(geo, mat);
+    rock.position.set(x, y, z);
+    rock.rotation.set(
+      Math.random() * 0.5,
+      Math.random() * 0.5,
+      Math.random() * 0.5
+    );
+
+    group.add(rock);
+  }
+
+  return group;
+}
+    function starVariantByTemperature(temp, colorHex) {
+      const n = Number(temp || 0);
+      if (n > 9000) return 'blue';
+      if (n > 0 && n < 4800) return 'red';
+      const c = String(colorHex || '').toLowerCase();
+      if (c.includes('55') && c.includes('ff')) return 'blue';
+      if (c.includes('ff7') || c.includes('cc55') || c.includes('aa55')) return 'red';
+      return 'yellow';
+    }
+
+async function createStarModel(system) {
+  const variant = starVariantByTemperature(system?.temp, system?.color);
+  const modelPath = SUN_MODEL_MAP[variant] || SUN_MODEL_MAP.yellow;
+  const template = await loadGltfTemplate(modelPath);
+
+  const group = new THREE.Group();
+  const size = 18 + Number(system?.scale || 1) * 11;
+
+  let starColor;
+  if (variant === 'blue') {
+    starColor = new THREE.Color(0x6bbcff);
+  } else if (variant === 'red') {
+    starColor = new THREE.Color(0xff6b4a);
+  } else {
+    starColor = new THREE.Color('#fc8803');
+  }
+
+  starVisualRadius = size * 0.5;
+
+  const root = template
+    ? deepCloneStyledObject(template)
+    : new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: starAuraTex,
+          color: starColor.clone(),
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        })
+      );
+
+  if (template) {
+    fitObjectToSize(root, size * 1.55);
+  } else {
+    root.scale.set(size * 1.35, size * 1.35, 1);
+  }
+
+  group.add(root);
+  root.traverse((child) => {
+  if (!child.isMesh || !child.material) return;
+
+  const materials = Array.isArray(child.material) ? child.material : [child.material];
+
+  for (const mat of materials) {
+    if (!('emissive' in mat)) continue;
+
+    mat.emissive.copy(starColor);
+    mat.emissiveIntensity = 0.3;
+  }
+});
+
+  const aura = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: starAuraTex,
+      color: starColor.clone().multiplyScalar(1.15),
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.42,
+      blending: THREE.AdditiveBlending,
+    })
+  );
+
+  aura.scale.set(size * 4.2, size * 4.2, 1);
+  group.add(aura);
+
+  sunLight.color.copy(starColor);
+
+  if (variant === 'blue') {
+    sunLight.intensity = 6.5;
+  } else if (variant === 'red') {
+    sunLight.intensity = 4.8;
+  } else {
+    sunLight.intensity = 5.96;
+  }
+
+  sunLight.distance = 1500;
+
+  return { group, spinRoot: root };
+}
+
+    async function createShipModel(raceKey, variant, size = 5) {
+      const preset = MODEL_PRESETS[raceKey] || MODEL_PRESETS.humans;
+      const shipDef = preset.ships[variant] || preset.ships.lite;
+      const template = await loadModelTemplate(shipDef);
+      if (!template) return null;
+      const model = deepCloneStyledObject(template);
+      fitObjectToSize(model, size * 1.15);
+      model.rotation.y = Math.PI;
+      return model;
+    }
+
+    //ZAVOD_PLANET
+ async function createFactoryPlanet(factoryKey, planetRadius, planetType) {
+  const modelPath = FACTORY_MODEL_MAP[factoryKey || ''];
+  let root = null;
+
+  if (modelPath) {
+    const template = await loadGltfTemplate(modelPath);
+    if (template) root = deepCloneStyledObject(template);
+  }
+
+  if (!root) {
+    const fallback = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 1.05, 0.9),
+      new THREE.MeshStandardMaterial({
+        color: 0xb7d8ff,
+        metalness: 0.3,
+        roughness: 0.45,
+        emissive: 0x04101b
+      })
+    );
+    root = new THREE.Group();
+    root.add(fallback);
+  }
+
+  fitObjectToSize(root, planetRadius * 0.03, { baseOnGround: true });
+  
+  const lift = planetRadius * 0.154;
+  root.position.set(0, lift, 0);
+  root.rotation.y = Math.PI * 0.25;
+
+  root.userData = {
+    ...(root.userData || {}),
+    isFactory: true,
+    factoryKey,
+  };
+
+  return root;
+}
+//ZAVOD_GAS
+async function createFactoryGas(factoryKey, planetRadius, planetType) {
+  const modelPath = FACTORY_MODEL_MAP[factoryKey || ''];
+  let root = null;
+
+  if (modelPath) {
+    const template = await loadGltfTemplate(modelPath);
+    if (template) root = deepCloneStyledObject(template);
+  }
+
+  if (!root) {
+    const fallback = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 1.05, 0.9),
+      new THREE.MeshStandardMaterial({
+        color: 0xb7d8ff,
+        metalness: 0.3,
+        roughness: 0.45,
+        emissive: 0x04101b
+      })
+    );
+    root = new THREE.Group();
+    root.add(fallback);
+  }
+
+  fitObjectToSize(root, planetRadius * 0.01, { baseOnGround: true });
+
+  const lift = planetRadius * 0.0198;
+  root.position.set(0, lift, 0);
+  root.rotation.y = Math.PI * 0.25;
+  root.rotation.z = 0.08;
+
+  root.userData = {
+    ...(root.userData || {}),
+    isFactory: true,
+    factoryKey,
+  };
+
+  return root;
+}
+    function createPlanetLabel(p, radius, options = {}) {
+      const showResources = !!options.showResources;
+      const hiddenIdentity = !!options.hiddenIdentity;
+
+      const planetName = hiddenIdentity ? 'Unknown' : (p.name || 'Planet');
+
+      const div = document.createElement('div');
+      div.className = 'pl-label';
+      div.innerHTML = `
+    <div class="planet-name">${planetName}</div>
+    ${(!hiddenIdentity && showResources) ? `<div class="resource-row">${resourceMarkup(p.yields)}</div>` : ''}
+  `;
+
+      const label = new CSS2DObject(div);
+      label.position.set(0, -(radius + 0.35), 0);
+      return label;
+    }
+    function createFleetLabel(name, options = {}) {
+      const div = document.createElement('div');
+      div.className = `fleet-label${options.enemy ? ' enemy' : ''}`;
+      div.textContent = name;
+      const label = new CSS2DObject(div);
+      label.position.set(0, -3.7, 0);
+      return label;
+    }
+
+    function createExitLabel(name, side = 'right') {
+      const div = document.createElement('div');
+      div.className = 'exit-label arrow-label';
+      div.textContent = name;
+      const label = new CSS2DObject(div);
+      if (side === 'left') {
+        label.center.set(1, 0.5);
+        label.position.set(-10.8, 0, 0);
+      } else {
+        label.center.set(0, 0.5);
+        label.position.set(10.8, 0, 0);
+      }
+      return label;
+    }
+
+    function createFleetAnchor(ship, name, options = {}) {
+      const anchor = new THREE.Group();
+      anchor.add(ship);
+      anchor.add(createFleetLabel(name, options));
+      return anchor;
+    }
+    function planetRootById(planetId) {
+      return planets.find(
+        (planet) => Number(planet.userData?.planetId || 0) === Number(planetId || 0)
+      ) || null;
+    }
+
+function computeShipPlacement(entry, index, total, options = {}) {
+  const enemy = !!options.enemy;
+  const candidatePlanets = planets.filter(p => p?.userData?.planetId);
+
+  let planet = null;
+
+  if (entry.assigned_planet_id) {
+    planet = candidatePlanets.find(
+      p => String(p.userData.planetId) === String(entry.assigned_planet_id)
+    ) || null;
+  }
+
+  if (!planet && entry.planet_id) {
+    planet = candidatePlanets.find(
+      p => String(p.userData.planetId) === String(entry.planet_id)
+    ) || null;
+  }
+
+  if (!planet && candidatePlanets.length) {
+    planet = candidatePlanets[index % candidatePlanets.length];
+  }
+
+  if (planet) {
+    const base = planet.position.clone();
+    const radial = new THREE.Vector3(base.x, 0, base.z);
+
+    if (radial.lengthSq() < 0.0001) radial.set(1, 0, 0);
+    radial.normalize();
+
+    const tangent = new THREE.Vector3(-radial.z, 0, radial.x).normalize();
+    const planetRadius = planet.userData?.radius || 5;
+
+    const localIndex = Number(entry.localPlanetIndex || 0);
+    const localTotal = Number(entry.localPlanetTotal || 1);
+    const sideOffset = localIndex - ((localTotal - 1) / 2);
+    const shellStep = Math.floor(localIndex / 3);
+    const outwardOffset = planetRadius + 7.5 + shellStep * 2.4 + (enemy ? 3.2 : 0);
+
+    const position = base.clone()
+      .add(radial.clone().multiplyScalar(outwardOffset))
+      .add(tangent.clone().multiplyScalar(sideOffset * 3.1));
+
+    position.y = base.y + 1.2 + ((localIndex % 2) ? 0.75 : 0.15) + (enemy ? 0.8 : 0.0);
+
+    return {
+      position,
+      lookAt: base.clone(),
+    };
+  }
+
+  const radius = Math.max(starVisualRadius + 28, 54);
+  const angle = (index / Math.max(1, total)) * Math.PI * 2 + (enemy ? Math.PI / 4 : 0);
+
+  return {
+    position: new THREE.Vector3(
+      Math.cos(angle) * radius,
+      1.2 + (enemy ? 0.8 : 0.0),
+      Math.sin(angle) * radius
+    ),
+    lookAt: new THREE.Vector3(0, 0, 0),
+  };
+}
+    async function addPlanet(p, idx, options = {}) {
+  const baseGap = starVisualRadius + 18;
+  const orbit = baseGap + (p.orbit * 7.5) + idx * 10.5;
+  addOrbit(orbit);
+
+      const radius = p.radius * 1.9 + 0.82;
+      const angle = (idx / Math.max(1, planetsCount)) * Math.PI * 2 + (p.id % 17) * 0.07;
+const x = Math.cos(angle) * orbit;
+const z = Math.sin(angle) * orbit;
+const y = 0;
+
+      const hiddenIdentity = !!options.hiddenIdentity;
+
+      const root = await createPlanetModelByType(
+        hiddenIdentity ? 'unknown' : p.type,
+        radius,
+        hiddenIdentity ? false : !!p.has_rings,
+        {
+          isCapital: hiddenIdentity ? false : !!p.is_capital,
+          raceKey: p.capital_race_key || currentSystemOwnerRaceKey,
+          hiddenIdentity
+        }
+      );
+
+      root.position.set(x, y, z);
+      root.rotation.z = p.axial_tilt || 0;
+      root.userData = {
+  planetId: p.id,
+  name: hiddenIdentity ? 'Unknown' : p.name,
+  isPlanet: true,
+  radius,
+  selectionRadius: root.userData.visualRadius || radius,
+  isCapital: hiddenIdentity ? false : !!p.is_capital,
+  hiddenIdentity
+};
+      root.userData.basePlanetRadius = radius;
+      root.userData.visualRadius = root.userData.visualRadius || getPlanetVisualRadius(root);
+      root.add(createPlanetLabel(p, radius, {
+        showResources: !hiddenIdentity && !!options.showResources,
+        hiddenIdentity
+      }));
+
+    let factoryRoot = null;
+
+const factoryPlanetRadius = root.userData.visualRadius || radius;
+const factoryKey = p.factory?.key || null;
+
+if (factoryKey) {
+  if (factoryKey === 'zavod_gas') {
+    factoryRoot = await createFactoryGas(factoryKey, factoryPlanetRadius, p.type);
+  } else {
+    factoryRoot = await createFactoryPlanet(factoryKey, factoryPlanetRadius, p.type);
+  }
+}
+
+if (factoryRoot) {
+  root.add(factoryRoot);
+}
+
+      planetGroup.add(root);
+      planets.push(root);
+      rotationMap.set(p.id, p.rotation || 0.003);
+      planetDataById.set(p.id, hiddenIdentity ? null : p);
+
+      return root;
+    }
+    function addExitArrows(neighbors) {
+      const tex = arrowTex();
+      const farthestPlanet = planets.reduce((max, planet) => Math.max(max, Math.hypot(planet.position.x, planet.position.z)), starVisualRadius + 22);
+      const radius = Math.max(92, farthestPlanet + 18);
+      for (const n of neighbors) {
+        if (n.visibility === 'unknown') continue;
+        const dx = n.x - systemPos.x;
+        const dz = n.z - systemPos.z;
+        const v = new THREE.Vector2(dx, dz);
+        if (v.length() < 0.0001) continue;
+        v.normalize();
+
+        const mat = new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0.94, depthWrite: false, blending: THREE.AdditiveBlending });
+        mat.rotation = -Math.atan2(v.y, v.x);
+        const spr = new THREE.Sprite(mat);
+        spr.scale.set(16, 16, 1);
+        spr.position.set(v.x * radius, 0, v.y * radius);
+        spr.userData = { systemId: n.id, name: n.name, isExit: true };
+        const labelSide = v.x >= 0 ? 'left' : 'right';
+        spr.add(createExitLabel(n.name, labelSide));
+        exitGroup.add(spr);
+        exits.push(spr);
+      }
+    }
+
+    async function addFleetShips(fleets, capitalPlanet, encounter = null) {
+  clearChildren(fleetGroup);
+  fleets3d = [];
+  fleetMotion = [];
+const availablePlanets = planets.filter(p => p?.userData?.planetId);
+const shuffledPlanets = [...availablePlanets].sort(() => Math.random() - 0.5);
+
+const renderEntries = (fleets || []).map((fleet, index) => {
+  const assignedPlanet = shuffledPlanets.length
+    ? shuffledPlanets[index % shuffledPlanets.length]
+    : null;
+
+  return {
+    fleetId: fleet.id,
+    planet_id: null,
+    assigned_planet_id: assignedPlanet?.userData?.planetId || null,
+    name: fleet.name,
+    race_key: fleet.race_key || currentSystemOwnerRaceKey || 'humans',
+    ship_variant: fleet.ship_variant || defaultShipVariants[index % defaultShipVariants.length],
+    is_enemy: false,
+  };
+});
+  if (encounter && encounter.enemy_race_key) {
+    renderEntries.push({
+      fleetId: null,
+      planet_id: null,
+      name: `${encounter.enemy_name || 'Enemy'} ${String(encounter.enemy_ship_type || 'medium').replace(/^./, (c) => c.toUpperCase())} Ship`,
+      race_key: encounter.enemy_race_key,
+      ship_variant: encounter.enemy_ship_type || 'medium',
+      is_enemy: true,
+    });
+  }
+
+  const perPlanetTotals = new Map();
+  for (let i = 0; i < renderEntries.length; i++) {
+    const entry = renderEntries[i];
+    const key = entry.planet_id ? `planet-${entry.planet_id}` : `fallback-${i}`;
+    perPlanetTotals.set(key, (perPlanetTotals.get(key) || 0) + 1);
+  }
+
+  const perPlanetIndexes = new Map();
+
+  for (let i = 0; i < renderEntries.length; i++) {
+    const entry = renderEntries[i];
+    const placementKey = entry.planet_id ? `planet-${entry.planet_id}` : `fallback-${i}`;
+
+    entry.localPlanetTotal = perPlanetTotals.get(placementKey) || 1;
+    entry.localPlanetIndex = perPlanetIndexes.get(placementKey) || 0;
+    perPlanetIndexes.set(placementKey, entry.localPlanetIndex + 1);
+
+    const variant = normalizeShipVariant(
+      entry.ship_variant || defaultShipVariants[i % defaultShipVariants.length]
+    );
+
+    let ship = await createShipModel(
+      entry.race_key || 'humans',
+      variant,
+      entry.is_enemy ? 5.6 : 5.0
+    );
+
+    if (!ship) ship = makeFallbackShip(entry.is_enemy ? 5.6 : 5.0);
+
+    ship.userData = {
+      fleetId: entry.fleetId,
+      name: entry.name,
+      isFleet: !entry.is_enemy,
+      isEnemy: !!entry.is_enemy,
+      planet_id: entry.planet_id || null,
+    };
+
+    const anchor = createFleetAnchor(ship, entry.name, { enemy: !!entry.is_enemy });
+
+    const placement = computeShipPlacement(entry, i, renderEntries.length, {
+      enemy: !!entry.is_enemy,
+      capitalPlanet,
+    });
+
+    anchor.position.copy(placement.position);
+    ship.lookAt(placement.lookAt);
+    ship.rotateY(Math.PI / 2 + (entry.is_enemy ? Math.PI : 0));
+    anchor.userData = { ...ship.userData };
+
+    fleetGroup.add(anchor);
+    fleets3d.push(anchor);
+    fleetMotion.push({
+      object: anchor,
+      model: ship,
+      center: anchor.position.clone(),
+      phase: i * 1.2,
+      spin: (entry.is_enemy ? 0.0032 : 0.0025) + i * 0.0005,
+    });
+  }
+}
+
+    async function fetchSystem() {
+      const url = `/game/api/session/${sessionId}/system/${systemId}?player=${playerId}`;
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(res.status);
+      return await res.json();
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function interactiveRoot(node) {
+      let cur = node;
+      while (cur) {
+        if (cur.userData?.planetId || cur.userData?.fleetId || cur.userData?.systemId) return cur;
+        cur = cur.parent;
+      }
+      return null;
+    }
+
+    function pickInteractive(ev, objects) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(objects, true);
+      for (const hit of hits) {
+        const root = interactiveRoot(hit.object);
+        if (root) return root;
+      }
+      return null;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function contextResourceMarkup(yields) {
+      const items = RESOURCE_META
+        .filter(([key]) => Number(yields?.[key] || 0) > 0)
+        .map(([key, label]) => `
+      <span class="ctx-res">
+        <img
+          src="${resourceIconsLarge[key]}"
+          alt="${label}"
+          title="${label}"
+          style="width:20px;height:20px;object-fit:contain;"
+        >
+        <span>${yields[key]}</span>
+      </span>
+    `);
+
+      return items.length ? items.join('') : '<span class="ctx-res">No resources</span>';
+    }
+
+    function showPlanetContext(planetData, ev) {
+      if (!planetData) return;
+      const happinessPct = planetData.happiness == null ? '—' : `${Math.round(Number(planetData.happiness) * 100)}%`;
+      const slots = planetData.slots == null ? '—' : planetData.slots;
+      const population = planetData.population == null ? '—' : planetData.population;
+      const specialization = planetData.specialization || 'balanced';
+      const capital = planetData.is_capital ? 'Yes' : 'No';
+
+      planetContextEl.innerHTML = `
+    <div class="ctx-title">${escapeHtml(planetData.name)}</div>
+    <div class="ctx-type">${escapeHtml(planetData.type)}</div>
+    <div class="ctx-grid">
+      <div class="ctx-item">Population<b>${escapeHtml(population)}</b></div>
+      <div class="ctx-item">Happiness<b>${escapeHtml(happinessPct)}</b></div>
+      <div class="ctx-item">Slots<b>${escapeHtml(slots)}</b></div>
+      <div class="ctx-item">Capital<b>${escapeHtml(capital)}</b></div>
+      <div class="ctx-item" style="grid-column:1 / -1;">Specialization<b>${escapeHtml(specialization)}</b></div>
+    </div>
+    <div class="ctx-yields">
+      <div class="ctx-yields-title">Extracted resources</div>
+      <div class="ctx-resources">${contextResourceMarkup(planetData.yields || {})}</div>
+    </div>
+    <div class="ctx-actions">
+      <button type="button" class="ctx-btn" data-manage-planet="${planetData.id}">Manage planet</button>
+    </div>
+  `;
+
+      planetContextEl.style.left = `${Math.min(ev.clientX + 14, window.innerWidth - 356)}px`;
+      planetContextEl.style.top = `${Math.min(ev.clientY + 10, window.innerHeight - 260)}px`;
+      planetContextEl.classList.add('visible');
+      planetContextEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function hidePlanetContext() {
+      planetContextEl.classList.remove('visible');
+      planetContextEl.setAttribute('aria-hidden', 'true');
+    }
+
+    planetContextEl.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-manage-planet]');
+      if (!btn) return;
+      const planetId = Number(btn.getAttribute('data-manage-planet'));
+      if (!planetId) return;
+      hidePlanetContext();
+      window.parent?.postMessage({ type: 'openPlanet', planetId }, '*');
+    });
+
+    document.addEventListener('pointerdown', (ev) => {
+      if (!planetContextEl.contains(ev.target)) hidePlanetContext();
+    });
+    window.addEventListener('blur', hidePlanetContext);
+    window.addEventListener('message', (ev) => {
+      if (!ev.data || typeof ev.data !== 'object') return;
+
+      if (ev.data.type === 'syncFleetSelection') {
+        selectedFleetId = Number(ev.data.fleetId || 0) || null;
+      }
+    });
+    window.addEventListener('click', (ev) => {
+      const exit = pickInteractive(ev, exits);
+      if (exit?.userData?.systemId) {
+        hidePlanetContext();
+        startSceneTransition('Changing System');
+        setTimeout(() => window.parent?.postMessage({ type: 'goSystem', systemId: exit.userData.systemId }, '*'), 420);
+        return;
+      }
+
+      const fleet = pickInteractive(ev, fleets3d);
+      if (fleet?.userData?.fleetId) {
+        hidePlanetContext();
+        selectedFleetId = Number(fleet.userData.fleetId || 0) || null;
+        window.parent?.postMessage({ type: 'selectFleet', fleetId: fleet.userData.fleetId }, '*');
+        return;
+      }
+
+      const planet = pickInteractive(ev, planets);
+      if (!planet?.userData?.planetId) {
+        hidePlanetContext();
+        return;
+      }
+      if (selectedPlanet) applyPlanetHighlight(selectedPlanet, false);
+      selectedPlanet = planet;
+      applyPlanetHighlight(selectedPlanet, true);
+      hidePlanetContext();
+      focusObject(planet, { duration: 420 });
+      setTimeout(() => window.parent?.postMessage({ type: 'openPlanet', planetId: planet.userData.planetId }, '*'), 380);
+    });
+
+    window.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      const fleet = pickInteractive(ev, fleets3d);
+      if (fleet?.userData?.fleetId) {
+        hidePlanetContext();
+        selectedFleetId = Number(fleet.userData.fleetId || 0) || null;
+        window.parent?.postMessage({ type: 'selectFleet', fleetId: fleet.userData.fleetId }, '*');
+        return;
+      }
+
+      const planet = pickInteractive(ev, planets);
+      if (!planet?.userData?.planetId) {
+        hidePlanetContext();
+        return;
+      }
+
+      if (selectedPlanet) applyPlanetHighlight(selectedPlanet, false);
+      selectedPlanet = planet;
+      applyPlanetHighlight(selectedPlanet, true);
+
+      if (selectedFleetId) {
+        hidePlanetContext();
+        window.parent?.postMessage({
+          type: 'moveFleetToPlanet',
+          fleetId: selectedFleetId,
+          planetId: planet.userData.planetId
+        }, '*');
+        return;
+      }
+
+      showPlanetContext(planetDataById.get(planet.userData.planetId), ev);
+    });
+
+    async function init() {
+      const data = await fetchSystem();
+      console.log('SYSTEM API DATA', data);
+      console.log('PLANETS FROM API', data.planets);
+      clearSystem();
+
+      const sys = data.system;
+      systemPos = { x: sys.x, y: sys.y, z: sys.z };
+      currentSystemOwnerRaceKey = data.system_owner_race_key || null;
+      currentSystemEncounter = data.encounter || null;
+
+      const starBundle = await createStarModel(sys);
+      star.add(starBundle.group);
+      starSpinObject = starBundle.spinRoot;
+
+      const sdiv = document.createElement('div');
+      sdiv.className = 'exit-label';
+      sdiv.textContent = sys.name;
+      const slb = new CSS2DObject(sdiv);
+      slb.position.set(0, -18, 0);
+      star.add(slb);
+
+const visibility = String(data?.visibility || 'unknown').trim().toLowerCase();
+const playerFleetInSystem = (data.fleets || []).some(f =>
+  Number(f.player_id || 0) === Number(playerId || 0)
+);
+
+const revealedByInfluence = !!data?.revealed_by_influence;
+
+const hidePlanetIdentity =
+  (visibility === 'unknown' && !playerFleetInSystem && !revealedByInfluence);
+
+      planetsCount = (data.planets || []).length;
+      let capitalPlanet = null;
+
+      const systemClaimedByPlayer =
+        Number(sys?.owner_player_id || 0) === Number(playerId || 0);
+
+      for (let i = 0; i < planetsCount; i++) {
+        const planetRoot = await addPlanet(data.planets[i], i, {
+          showResources: systemClaimedByPlayer && !hidePlanetIdentity,
+          hiddenIdentity: hidePlanetIdentity
+        });
+
+        if (!hidePlanetIdentity && data.planets[i].is_capital) {
+          capitalPlanet = planetRoot;
+        }
+      }
+
+      addExitArrows(data.neighbors || []);
+      await addFleetShips(data.fleets || [], capitalPlanet, currentSystemEncounter);
+
+      const restored = restoreSystemCamera();
+      if (!restored) {
+        controls.target.set(0, 0, 0);
+        controls.update();
+      }
+
+      saveSystemCamera();
+    }
+
+    init()
+    .then(() => {
+        window.parent?.postMessage({ type: 'systemReady' }, '*');
+    })
+    .catch((error) => {
+        console.error(error);
+    });
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      if (starSpinObject) {
+        starSpinObject.rotation.y += 0.0015;
+      }
+
+      for (const planet of planets) {
+        const speed = rotationMap.get(planet.userData?.planetId) || 0.003;
+        planet.rotation.y += speed;
+      }
+
+      const t = clock.getElapsedTime();
+      for (const motion of fleetMotion) {
+        motion.object.position.y = motion.center.y + Math.sin(t * 1.7 + motion.phase) * 0.35;
+      }
+
+      if (cameraFlight) {
+        const progress = Math.min(1, (performance.now() - cameraFlight.start) / cameraFlight.duration);
+        const eased = easeInOutCubic(progress);
+        camera.position.lerpVectors(cameraFlight.startCamera, cameraFlight.endCamera, eased);
+        controls.target.lerpVectors(cameraFlight.startTarget, cameraFlight.endTarget, eased);
+        if (progress >= 1) cameraFlight = null;
+      }
+
+      composer.render();
+      labelRenderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      hidePlanetContext();
+    });
+  </script>
+</body>
+
+</html>

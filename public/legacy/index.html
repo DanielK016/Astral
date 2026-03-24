@@ -1,0 +1,2538 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Astral Empires — Galaxy Map</title>
+  <style>
+    :root {
+      --bg: #02030b;
+      --panel: rgba(6, 12, 24, .72);
+      --panel-border: rgba(101, 190, 255, .35);
+      --text: #dbeeff;
+      --muted: #88a3b8;
+      --accent: #64d2ff;
+      --accent-2: #9dffff;
+      --gold: #f3bf42;
+      --danger: #ff5b6a;
+      --success: #65ffb7;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #02030b url('../assets/img_model_main/fon_galaxy/galaxy_fon.jpg') center center / cover no-repeat fixed;
+      font-family: Arial, system-ui, sans-serif;
+      color: var(--text)
+    }
+
+    canvas {
+      display: block
+    }
+
+    #ui-root {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .03) inset, 0 10px 35px rgba(0, 0, 0, .45), 0 0 32px rgba(32, 145, 255, .12);
+      backdrop-filter: blur(9px);
+    }
+
+    #legend {
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      max-width: 340px;
+      padding: 14px 16px 13px;
+      pointer-events: none;
+    }
+
+    #legend h1 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #f0f7ff
+    }
+
+    #legend p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45
+    }
+
+    #modes {
+      display: none !important;
+    }
+
+    .mode-btn {
+      appearance: none;
+      border: 1px solid rgba(115, 196, 255, .22);
+      background: rgba(10, 18, 34, .74);
+      color: #d6ebff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      transition: .16s ease;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .02) inset;
+    }
+
+    .mode-btn:hover {
+      background: rgba(17, 34, 57, .95);
+      border-color: rgba(132, 212, 255, .48)
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(180deg, rgba(92, 200, 255, .22), rgba(10, 30, 50, .98));
+      border-color: rgba(145, 230, 255, .9);
+      color: #fff;
+      box-shadow: 0 0 18px rgba(80, 190, 255, .28), 0 0 0 1px rgba(255, 255, 255, .06) inset;
+    }
+
+    #hover-card {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      min-width: 240px;
+      max-width: 320px;
+      padding: 14px 16px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .12s ease, transform .12s ease;
+      pointer-events: none;
+    }
+
+    #hover-card.visible {
+      opacity: 1;
+      transform: translateY(0)
+    }
+
+    #hover-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      margin-bottom: 4px;
+      color: #f5fbff
+    }
+
+    #hover-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 12px;
+      padding: 3px 0
+    }
+
+    .row span:first-child {
+      color: #92abc1
+    }
+
+    .row span:last-child {
+      color: #f0f8ff;
+      text-align: right
+    }
+
+    #help {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      padding: 12px 14px;
+      max-width: min(560px, calc(100vw - 36px));
+      font-size: 12px;
+      color: #9eb8cb;
+      line-height: 1.45;
+    }
+
+    #help .k {
+      color: #fff;
+      font-weight: 700
+    }
+
+    .label-system {
+      pointer-events: none;
+      opacity: .94;
+      transition: opacity .15s ease, transform .15s ease;
+      filter: drop-shadow(0 0 10px rgba(0, 0, 0, .78));
+    }
+
+    .label-system.dim {
+      opacity: .58
+    }
+
+    .system-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .system-badge__top {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .system-badge__resources {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 16px;
+      padding-left: 29px;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+
+    .system-badge__resource {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #effbff;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      pointer-events: auto;
+      user-select: none;
+    }
+
+    .system-badge__resource-icon {
+      width: 14px;
+      height: 14px;
+      object-fit: contain;
+      display: inline-block;
+      filter: drop-shadow(0 0 4px rgba(85, 210, 255, .35));
+    }
+
+    .system-badge__name {
+      min-width: 78px;
+      max-width: 132px;
+      padding: 4px 8px 3px;
+      border: 1px solid rgba(102, 214, 255, .30);
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(18, 96, 86, .88), rgba(9, 48, 53, .88));
+      color: #f0fbff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.02;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: .015em;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, .035) inset, 0 0 12px rgba(18, 116, 120, .12);
+    }
+
+    .label-system.dim .system-badge__name {
+      background: linear-gradient(180deg, rgba(45, 66, 82, .82), rgba(22, 30, 40, .82));
+      border-color: rgba(142, 168, 188, .22);
+      color: #d7e6ef;
+    }
+
+    .system-badge__icon {
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(255, 86, 104, .42);
+      background: linear-gradient(180deg, rgba(131, 22, 31, .92), rgba(83, 13, 20, .92));
+      clip-path: polygon(25% 6.5%, 75% 6.5%, 100% 50%, 75% 93.5%, 25% 93.5%, 0 50%);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 12px rgba(255, 80, 96, .14), inset 0 0 0 1px rgba(255, 255, 255, .04);
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    .system-badge__icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .system-badge__icon--empty {
+      opacity: .32;
+      border-color: rgba(160, 176, 194, .20);
+      background: linear-gradient(180deg, rgba(52, 62, 74, .88), rgba(28, 35, 43, .88));
+    }
+
+    .system-badge--owned .system-badge__name {
+      background: linear-gradient(180deg, rgba(18, 96, 86, .88), rgba(9, 48, 53, .88));
+      border-color: rgba(102, 214, 255, .30);
+      color: #f0fbff;
+    }
+
+    .system-badge--neutral .system-badge__name {
+      background: linear-gradient(180deg, rgba(45, 66, 82, .82), rgba(22, 30, 40, .82));
+      border-color: rgba(142, 168, 188, .22);
+      color: #d7e6ef;
+    }
+
+    .system-badge--unknown {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .system-badge--unknown .system-badge__top {
+      display: block;
+    }
+
+    .system-badge--unknown .system-badge__icon {
+      display: none !important;
+    }
+
+    .system-badge--unknown .system-badge__resources {
+      display: none !important;
+    }
+
+    .system-badge--unknown .system-badge__name {
+      min-width: auto;
+      max-width: none;
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: #a0b0c0;
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+    }
+
+    .label-empire {
+      color: #f4f9ff;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      white-space: nowrap;
+      pointer-events: none;
+      text-shadow: 0 0 18px rgba(0, 0, 0, .85), 0 0 22px rgba(48, 198, 255, .22);
+      opacity: .92;
+      text-align: center;
+    }
+
+    .label-empire small {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: #aac8dd;
+      opacity: .9;
+      margin-top: 3px
+    }
+
+    .fleet-badge {
+      color: #dff7ff;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      pointer-events: none;
+      text-shadow: 0 0 10px rgba(0, 0, 0, .9), 0 0 16px rgba(95, 210, 255, .25);
+      opacity: .92;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 45%, rgba(15, 25, 48, .58), rgba(2, 4, 10, .92));
+      z-index: 40;
+      transition: opacity .3s ease, visibility .3s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #loading .inner {
+      text-align: center
+    }
+
+    #loading .title {
+      font-size: 18px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: #eff7ff;
+      margin-bottom: 8px
+    }
+
+    #loading .sub {
+      font-size: 12px;
+      color: #99b2c7
+    }
+
+
+    #scene-transition {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 38%, rgba(18, 45, 82, .24), rgba(1, 4, 10, .96));
+      opacity: 0;
+      visibility: hidden;
+      z-index: 60;
+      transition: opacity .42s ease, visibility .42s ease;
+      pointer-events: none;
+    }
+
+    #scene-transition.visible {
+      opacity: 1;
+      visibility: visible;
+        pointer-events: none;
+    }
+
+    #scene-transition .label {
+      color: #eff7ff;
+      font-size: 12px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 980px) {
+      #legend {
+        max-width: 240px
+      }
+
+      #hover-card {
+        left: 18px;
+        right: 18px;
+        min-width: 0;
+        max-width: none
+      }
+
+      #help {
+        display: none
+      }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <div id="loading">
+    <div class="inner">
+      <div class="title">GALAXY MAP</div>
+      <div class="sub">Loading political map, hyperlanes, and empire borders…</div>
+    </div>
+  </div>
+
+<div id="scene-transition"><div class="label">Loading</div></div>
+  <div id="ui-root">
+    <div id="legend" class="panel">
+      <h1>Galaxy Map</h1>
+      
+    </div>
+
+    <div id="modes" class="panel"></div>
+
+    <div id="hover-card" class="panel">
+      <div id="hover-title">—</div>
+      <div id="hover-sub">—</div>
+      <div class="row"><span>Empire</span><span id="hover-owner">—</span></div>
+      <div class="row"><span>Visibility</span><span id="hover-visibility">—</span></div>
+      <div class="row"><span>Threat</span><span id="hover-threat">—</span></div>
+      <div class="row"><span>Fleets</span><span id="hover-fleet">—</span></div>
+    </div>
+
+    <div id="help" class="panel">
+      <span class="k">1</span> Politics · <span class="k">2</span> Empires · <span class="k">3</span> Diplomacy · <span
+        class="k">4</span> Intelligence · <span class="k">5</span> Hypernet · <span class="k">6</span> Clean Map
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { MapControls } from 'three/addons/controls/MapControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    import { Line2 } from 'three/addons/lines/Line2.js';
+    import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+    import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+    import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+    import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const qs = new URLSearchParams(location.search);
+    const EMBED = qs.get('embed') === '1' || window.self !== window.top;
+    const sessionId = parseInt(qs.get('session') || '0', 10);
+    const playerId = parseInt(qs.get('player') || '0', 10);
+
+    if (EMBED) {
+      document.getElementById('legend')?.remove();
+      document.getElementById('help')?.remove();
+    }
+
+    const MAP_Y_SCALE = 0.10;
+    const TERRITORY_Y = -14;
+    const STAR_BASE_Y = 0;
+    const TERRAIN_PAD = 74;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.90;
+    document.body.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.left = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+    renderer.domElement.style.touchAction = 'none';
+    labelRenderer.domElement.style.touchAction = 'none';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x02030b);
+    scene.fog = new THREE.FogExp2(0x030713, 0.00045);
+
+    new THREE.TextureLoader().load('../assets/img_model_main/fon_galaxy/galaxy_fon.jpg', (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      scene.background = texture;
+    });
+
+    const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 9000);
+    camera.position.set(0, 860, 860);
+
+    const controls = new MapControls(camera, renderer.domElement);
+
+    const GALAXY_VIEW_KEY = `astral_galaxy_view_${sessionId}_${playerId}`;
+    const GALAXY_SELECTED_KEY = `astral_galaxy_selected_system_${sessionId}_${playerId}`;
+
+    // save the camera position
+    function saveGalaxyView() {
+      try {
+        localStorage.setItem(GALAXY_VIEW_KEY, JSON.stringify({
+          camera: {
+            x: camera.position.x,
+            y: camera.position.y,
+            z: camera.position.z
+          },
+          target: {
+            x: controls.target.x,
+            y: controls.target.y,
+            z: controls.target.z
+          }
+        }));
+      } catch (e) {
+        console.warn('Could not save galaxy view', e);
+      }
+    }
+
+    // restore the camera position
+    function restoreGalaxyView() {
+      try {
+        const raw = localStorage.getItem(GALAXY_VIEW_KEY);
+        if (!raw) return false;
+
+        const saved = JSON.parse(raw);
+        if (!saved?.camera || !saved?.target) return false;
+
+        camera.position.set(
+          Number(saved.camera.x),
+          Number(saved.camera.y),
+          Number(saved.camera.z)
+        );
+
+        controls.target.set(
+          Number(saved.target.x),
+          Number(saved.target.y),
+          Number(saved.target.z)
+        );
+
+        controls.update();
+        return true;
+      } catch (e) {
+        console.warn('Could not restore galaxy view', e);
+        return false;
+      }
+    }
+
+    // save the selected system
+    function saveSelectedSystem(systemId) {
+      try {
+        localStorage.setItem(GALAXY_SELECTED_KEY, String(systemId || 0));
+      } catch (e) {
+        console.warn('Could not save selected system', e);
+      }
+    }
+
+    // read the selected system
+    function getSavedSelectedSystem() {
+      try {
+        return Number(localStorage.getItem(GALAXY_SELECTED_KEY) || 0);
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.085;
+    window.addEventListener('beforeunload', saveGalaxyView);
+
+    controls.rotateSpeed = 0.55;
+    controls.zoomSpeed = 1.0;
+    controls.enableZoom = true;
+    controls.screenSpacePanning = false;
+
+    controls.minDistance = 180;
+    controls.maxDistance = 3800;
+    controls.minPolarAngle = 0.18;
+    controls.maxPolarAngle = 0.68;
+
+    controls.target.set(0, 0, 0);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.28, 0.36, 0.9);
+    composer.addPass(bloomPass);
+    const fxaa = new ShaderPass(FXAAShader);
+    fxaa.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
+    composer.addPass(fxaa);
+
+    scene.add(new THREE.AmbientLight(0x7da4d6, 0.32));
+    const hemi = new THREE.HemisphereLight(0x7dbdff, 0x08111d, 0.42);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xa8d9ff, 0.18);
+    dir.position.set(220, 900, 480);
+    scene.add(dir);
+
+    const loaderEl = document.getElementById('loading');
+    const hoverCard = document.getElementById('hover-card');
+    const hoverTitle = document.getElementById('hover-title');
+    const hoverSub = document.getElementById('hover-sub');
+    const hoverOwner = document.getElementById('hover-owner');
+    const hoverVisibility = document.getElementById('hover-visibility');
+    const hoverThreat = document.getElementById('hover-threat');
+    const hoverFleet = document.getElementById('hover-fleet');
+    const modesEl = document.getElementById('modes');
+
+
+    const MODE_DEFS = [
+      { id: 1, name: 'Politics' },
+      { id: 2, name: 'Empires' },
+      { id: 3, name: 'Diplomacy' },
+      { id: 4, name: 'Intelligence' },
+      { id: 5, name: 'Hypernet' },
+      { id: 6, name: 'Clean Map' },
+    ];
+
+    let mode = 1;
+    let systems = [];
+    let fleetSprites = [];
+    let lanes = [];
+    let fleets = [];
+    let relations = {};
+    let ownerColors = {};
+    let playersMeta = {};
+    let fleetGroups = new Map();
+    let systemById = new Map();
+    let starObjects = [];
+    let systemCores = [];
+    let labelObjects = [];
+    let empireLabelObjects = [];
+    let fleetLabelObjects = [];
+    let territoryGroups = [];
+    let fatMaterials = [];
+    let hyperlaneObject = null;
+    let hyperlaneGlow = null;
+    let hoveredObject = null;
+    let showHyperlanes = true;
+    let showBorders = true;
+    let showLabels = true;
+    let mapCenter = new THREE.Vector3();
+    let mapRadius = 1200;
+    let fleetMarkerEntries = [];
+    let fleetHitboxes = [];
+    const capitalSystemIds = new Set();
+    const selectedFleetIds = new Set();
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2(2, 2);
+    const clock = new THREE.Clock();
+    let cameraFlight = null;
+
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function forceHideLoading() {
+  if (!loaderEl) return;
+  loaderEl.classList.add('hidden');
+  loaderEl.style.display = 'none';
+  loaderEl.style.pointerEvents = 'none';
+}
+
+setTimeout(forceHideLoading, 5000);
+window.addEventListener('load', forceHideLoading);
+function startSceneTransition(label = 'Loading') {
+  const overlay = document.getElementById('scene-transition');
+  const labelEl = overlay?.querySelector('.label');
+
+  if (labelEl) labelEl.textContent = label;
+  overlay?.classList.add('visible');
+
+  setTimeout(() => {
+    overlay?.classList.remove('visible');
+  }, 5000);
+}
+    function startCameraFlight(targetObject) {
+      if (!targetObject) return;
+      const focus = targetObject.position.clone();
+      const direction = camera.position.clone().sub(controls.target).normalize();
+      const distance = Math.max(140, Math.min(260, camera.position.distanceTo(focus) * 0.45));
+      const startCamera = camera.position.clone();
+      const startTarget = controls.target.clone();
+      const endTarget = focus.clone();
+      const endCamera = focus.clone().add(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, 42, 0));
+      cameraFlight = {
+        start: performance.now(),
+        duration: 520,
+        startCamera,
+        startTarget,
+        endCamera,
+        endTarget,
+      };
+    }
+
+    const gltfLoader = new GLTFLoader();
+    const SUN_MODEL_MAP = {
+      red: '../models/DOX_TEXTUR_SUN_3D/redStar.glb',
+      yellow: '../models/DOX_TEXTUR_SUN_3D/yellowStar.glb',
+      blue: '../models/DOX_TEXTUR_SUN_3D/blueStar.glb',
+    };
+    const RACE_ICON_PATHS = {
+      humans: '../assets/img_model_main/human/RASA/human_icon.png',
+      lorians: '../assets/img_model_main/zab_human/RASA/zab_human_icon.png',
+      zeth: '../assets/img_model_main/roi/RASA/roi_icon.png',
+    };
+    const RESOURCE_META = {
+      science: { label: 'Energy Credits', icon: '/assets/resources64x64/Energy_Credits.png' },
+      energy: { label: 'Biomass', icon: '/assets/resources64x64/Biomass.png' },
+      unity: { label: 'Raw Minerals', icon: '/assets/resources64x64/Raw_Minerals.png' },
+      minerals: { label: 'Dark Matter', icon: '/assets/resources64x64/Dark_Matter.png' },
+      rare_metals: { label: 'Ethereal Dust', icon: '/assets/resources64x64/Ethereal_Dust.png' },
+      exotic_gases: { label: 'Living Crystal', icon: '/assets/resources64x64/Living_Crystal.png' },
+      xenocultures: { label: 'Nano Alloys', icon: '/assets/resources64x64/Nano-Alloys.png' },
+      influence: { label: 'Neural Chips', icon: '/assets/resources64x64/Neural_Chips.png' },
+    };
+    let selectedObject = null;
+    let selectionHex = null;
+
+    function makeCanvasTexture(size, painter) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      painter(ctx, size);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const starSpriteTex = makeCanvasTexture(256, (ctx, s) => {
+      const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      g.addColorStop(0.00, 'rgba(255,255,255,1)');
+      g.addColorStop(0.05, 'rgba(255,255,255,.98)');
+      g.addColorStop(0.10, 'rgba(235,246,255,.95)');
+      g.addColorStop(0.18, 'rgba(170,224,255,.56)');
+      g.addColorStop(0.34, 'rgba(82,178,255,.16)');
+      g.addColorStop(0.58, 'rgba(18,74,140,.04)');
+      g.addColorStop(1.00, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    });
+
+    const glowTex = makeCanvasTexture(512, (ctx, s) => {
+      const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      g.addColorStop(0.00, 'rgba(255,255,255,.92)');
+      g.addColorStop(0.08, 'rgba(220,242,255,.42)');
+      g.addColorStop(0.22, 'rgba(114,200,255,.18)');
+      g.addColorStop(0.48, 'rgba(46,128,255,.07)');
+      g.addColorStop(1.00, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    });
+
+    const fleetTex = makeCanvasTexture(128, (ctx, s) => {
+      ctx.translate(s / 2, s / 2);
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.34);
+      ctx.lineTo(s * 0.22, s * 0.10);
+      ctx.lineTo(0, s * 0.02);
+      ctx.lineTo(-s * 0.22, s * 0.10);
+      ctx.closePath();
+      ctx.fillStyle = '#f6fdff';
+      ctx.shadowBlur = 26;
+      ctx.shadowColor = '#7dd7ff';
+      ctx.fill();
+    });
+
+    const ringTex = makeCanvasTexture(256, (ctx, s) => {
+      ctx.translate(s / 2, s / 2);
+      ctx.strokeStyle = 'rgba(255,245,210,.95)';
+      ctx.lineWidth = s * 0.045;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#ffc74a';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.24, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    function seededUnit(seed) {
+      const x = Math.sin(seed * 127.1) * 43758.5453123;
+      return x - Math.floor(x);
+    }
+
+    function seededRange(seed, min, max) {
+      return min + (max - min) * seededUnit(seed);
+    }
+
+    function hexColor(hex, fallback = '#a8d6ff') {
+      try { return new THREE.Color(hex || fallback); }
+      catch { return new THREE.Color(fallback); }
+    }
+
+    function ownerRaceKey(sys) {
+      if (!sys?.owner_player_id) return null;
+      return playersMeta[String(sys.owner_player_id)]?.race_key || null;
+    }
+
+    function raceIconPath(sys) {
+      const raceKey = ownerRaceKey(sys);
+      return raceKey ? (RACE_ICON_PATHS[raceKey] || '') : '';
+    }
+
+    function resourceBadgeMarkup(resourceKey) {
+      const meta = RESOURCE_META[resourceKey];
+      if (!meta) return '';
+      return `
+    <span class="system-badge__resource system-badge__resource--${resourceKey}" title="${meta.label}" aria-label="${meta.label}">
+      <img class="system-badge__resource-icon" src="${meta.icon}" alt="${meta.label}">
+    </span>
+  `;
+    }
+
+    function systemResourceMarkup(sys) {
+      const yields = sys.total_yields || {};
+      const items = [];
+
+      for (const [key, meta] of Object.entries(RESOURCE_META)) {
+        if (Number(yields[key] || 0) > 0) {
+          items.push(`
+        <span class="system-badge__resource system-badge__resource--${key}" title="${meta.label}">
+          <img class="system-badge__resource-icon" src="${meta.icon}" alt="${meta.label}">
+          <span>${yields[key]}</span>
+        </span>
+      `);
+        }
+      }
+
+      return items.length ? `<div class="system-badge__resources">${items.join('')}</div>` : '';
+    }
+    function getCsrfToken() {
+      const own = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      if (own) return own;
+
+      try {
+        return window.parent?.document?.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function starVariantByTemperature(temp, colorHex) {
+      const n = Number(temp || 0);
+      if (n > 9000) return 'blue';
+      if (n > 0 && n < 4800) return 'red';
+      const c = String(colorHex || '').toLowerCase();
+      if (c.includes('55') && c.includes('ff')) return 'blue';
+      if (c.includes('ff7') || c.includes('cc55') || c.includes('aa55')) return 'red';
+      return 'yellow';
+    }
+
+    function systemStarColor(sys) {
+      const variant = starVariantByTemperature(sys?.temp, sys?.color);
+      if (variant === 'red') return new THREE.Color('#ff8b78');
+      if (variant === 'blue') return new THREE.Color('#78ccff');
+      return new THREE.Color('#ffd86a');
+    }
+    function systemStarBorderColor(sys) {
+      const variant = starVariantByTemperature(sys?.temp, sys?.color);
+      if (variant === 'red') return new THREE.Color('#ff6b5e');
+      if (variant === 'blue') return new THREE.Color('#4fc3ff');
+      return new THREE.Color('#ffd84a');
+    }
+
+    function fitObjectToSize(object, size) {
+      const box = new THREE.Box3().setFromObject(object);
+      const dims = new THREE.Vector3();
+      box.getSize(dims);
+      const maxDim = Math.max(dims.x, dims.y, dims.z, 0.0001);
+      const scale = size / maxDim;
+      object.scale.multiplyScalar(scale);
+      const nextBox = new THREE.Box3().setFromObject(object);
+      const center = new THREE.Vector3();
+      nextBox.getCenter(center);
+      object.position.sub(center);
+    }
+
+    function getDistanceFactor(objPos) {
+      const distance = camera.position.distanceTo(objPos);
+      const near = controls.minDistance;
+      const far = mapRadius * 0.8;
+      if (distance <= near) return 1;
+      if (distance >= far) return 0;
+      return 1 - (distance - near) / (far - near);
+    }
+
+    function createSelectionHex() {
+      const radius = 9;
+      const points = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 6) + (i / 6) * Math.PI * 2;
+        points.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
+      }
+      points.push(points[0].clone());
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      geom.computeBoundingSphere();
+      const line = new THREE.Line(
+        geom,
+        new THREE.LineDashedMaterial({
+          color: 0xffc96b,
+          transparent: true,
+          opacity: 0.95,
+          dashSize: 2.5,
+          gapSize: 1.95,
+          depthWrite: false,
+        })
+      );
+      line.computeLineDistances();
+      line.visible = false;
+      line.renderOrder = 10;
+      scene.add(line);
+      return line;
+    }
+
+    function updateSelectionHex() {
+      if (!selectionHex) selectionHex = createSelectionHex();
+      if (!selectedObject) {
+        selectionHex.visible = false;
+        return;
+      }
+      selectionHex.visible = true;
+      const pos = selectedObject.position;
+      const size = selectedObject.userData?.baseSize || 18;
+      const scale = Math.max(0.48, size / 34);
+      selectionHex.position.set(pos.x, pos.y + 1.1, pos.z);
+      selectionHex.scale.setScalar(scale);
+    }
+    function selectSystemObject(object) {
+      selectedObject = object || null;
+
+      if (selectedObject?.userData?.id) {
+        saveSelectedSystem(selectedObject.userData.id);
+      }
+
+      saveGalaxyView();
+      updateSelectionHex();
+    }
+
+    function visibilityLabel(v) {
+      if (v === 'surveyed') return 'Surveyed';
+      if (v === 'discovered') return 'Discovered';
+      return 'Unknown';
+    }
+
+    function relationColor(ownerId) {
+      if (!ownerId) return new THREE.Color('#4b6078');
+      if (ownerId === playerId) return new THREE.Color('#71d7ff');
+      const st = relations[String(ownerId)] || 'unknown';
+      if (st === 'friendly') return new THREE.Color('#63ffb4');
+      if (st === 'neutral') return new THREE.Color('#ffd066');
+      if (st === 'war') return new THREE.Color('#ff6974');
+      return new THREE.Color('#8da0b5');
+    }
+
+    function positionForSystem(sys) {
+      return new THREE.Vector3(sys.x, STAR_BASE_Y, sys.z);
+    }
+    function removeCss2dElementsDeep(obj) {
+  if (!obj) return;
+
+  if (obj.element && obj.element.parentNode) {
+    obj.element.parentNode.removeChild(obj.element);
+  }
+
+  if (obj.children && obj.children.length) {
+    for (const child of obj.children) {
+      removeCss2dElementsDeep(child);
+    }
+  }
+}
+    function clearDynamicObjects() {
+      for (const obj of [...starObjects, ...labelObjects, ...empireLabelObjects, ...fleetLabelObjects, ...territoryGroups]) {
+        if (obj.parent) obj.parent.remove(obj);
+      }
+
+      starObjects = [];
+      systemCores = [];
+      labelObjects = [];
+      selectedObject = null;
+      empireLabelObjects = [];
+      fleetLabelObjects = [];
+      territoryGroups = [];
+      fleetMarkerEntries = [];
+      fleetHitboxes = [];
+      fleetSprites = [];
+      selectedFleetIds.clear();
+
+      if (selectionHex) selectionHex.visible = false;
+      if (hyperlaneObject?.parent) hyperlaneObject.parent.remove(hyperlaneObject);
+      if (hyperlaneGlow?.parent) hyperlaneGlow.parent.remove(hyperlaneGlow);
+
+      hyperlaneObject = null;
+      hyperlaneGlow = null;
+      systemById = new Map();
+      fatMaterials = [];
+      capitalSystemIds.clear();
+    }
+
+    function createBackgroundField(center) {
+      const group = new THREE.Group();
+
+      const bgCount = 24000;
+      const bgGeom = new THREE.BufferGeometry();
+      const bgPos = new Float32Array(bgCount * 3);
+      const bgColors = new Float32Array(bgCount * 3);
+      for (let i = 0; i < bgCount; i++) {
+        const r = seededRange(i + 1, 2100, 4300);
+        const t = seededRange(i + 11, 0, Math.PI * 2);
+        const p = Math.acos(2 * seededUnit(i + 91) - 1);
+        bgPos[i * 3 + 0] = center.x + r * Math.sin(p) * Math.cos(t);
+        bgPos[i * 3 + 1] = center.y + r * Math.cos(p) * 0.65;
+        bgPos[i * 3 + 2] = center.z + r * Math.sin(p) * Math.sin(t);
+        const c = seededUnit(i + 111);
+        bgColors[i * 3 + 0] = 0.60 + c * 0.38;
+        bgColors[i * 3 + 1] = 0.70 + c * 0.25;
+        bgColors[i * 3 + 2] = 0.86 + c * 0.14;
+      }
+      bgGeom.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+      bgGeom.setAttribute('color', new THREE.BufferAttribute(bgColors, 3));
+      const bgMat = new THREE.PointsMaterial({
+        map: starSpriteTex,
+        size: 2.15,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.92,
+        alphaTest: 0.03,
+        depthWrite: false,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+      });
+      group.add(new THREE.Points(bgGeom, bgMat));
+
+      const diskTex = makeCanvasTexture(1600, (ctx, s) => {
+        ctx.clearRect(0, 0, s, s);
+        const cx = s / 2;
+        const cy = s / 2;
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.48);
+        rg.addColorStop(0, 'rgba(245,250,255,.52)');
+        rg.addColorStop(0.09, 'rgba(160,214,255,.28)');
+        rg.addColorStop(0.22, 'rgba(76,138,220,.12)');
+        rg.addColorStop(0.58, 'rgba(28,71,132,.04)');
+        rg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, s, s);
+
+        ctx.globalCompositeOperation = 'lighter';
+        for (let arm = 0; arm < 5; arm++) {
+          const phase = (arm / 5) * Math.PI * 2;
+          for (let i = 0; i < 1900; i++) {
+            const p = i / 1900;
+            const radius = s * (0.04 + p * 0.43);
+            const ang = phase + p * Math.PI * 5.1 + seededRange(i * 17 + arm * 31, -0.12, 0.12);
+            const x = cx + Math.cos(ang) * radius;
+            const y = cy + Math.sin(ang) * radius * 0.62;
+            const alpha = (1 - p) * seededRange(i * 19 + arm * 13, 0.024, 0.085);
+            ctx.fillStyle = `rgba(${120 + (arm * 14)},${210 + (arm * 3)},255,${alpha})`;
+            ctx.fillRect(x, y, seededRange(i * 9 + arm, 1, 2), seededRange(i * 7 + arm, 1, 2));
+          }
+        }
+        ctx.globalCompositeOperation = 'source-over';
+      });
+
+      const disk = new THREE.Mesh(
+        new THREE.PlaneGeometry(mapRadius * 3.6, mapRadius * 2.2),
+        new THREE.MeshBasicMaterial({ map: diskTex, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      disk.rotation.x = -Math.PI / 2;
+      disk.position.copy(center);
+      disk.position.y = -90;
+      group.add(disk);
+
+      const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex,
+        color: new THREE.Color('#e8f8ff'),
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      coreGlow.scale.set(mapRadius * 1.1, mapRadius * 1.1, 1);
+      coreGlow.position.copy(center);
+      coreGlow.position.y = -30;
+      group.add(coreGlow);
+
+      scene.add(group);
+      return group;
+    }
+
+    let backgroundGroup = null;
+
+    function makeNebulaSpriteTexture(seed) {
+      return makeCanvasTexture(512, (ctx, s) => {
+        ctx.clearRect(0, 0, s, s);
+        const baseHue = 185 + Math.floor(seededRange(seed + 1, 0, 45));
+        for (let i = 0; i < 38; i++) {
+          const x = seededRange(seed * 11 + i * 13, s * 0.15, s * 0.85);
+          const y = seededRange(seed * 17 + i * 19, s * 0.15, s * 0.85);
+          const r = seededRange(seed * 23 + i * 29, s * 0.08, s * 0.26);
+          const alpha = seededRange(seed * 31 + i * 7, 0.028, 0.085);
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          const h = baseHue + Math.floor(seededRange(seed * 41 + i * 5, -18, 18));
+          g.addColorStop(0.0, `hsla(${h},90%,78%,${alpha})`);
+          g.addColorStop(0.45, `hsla(${h + 10},92%,64%,${alpha * 0.55})`);
+          g.addColorStop(1.0, `hsla(${h + 24},90%,24%,0)`);
+          ctx.fillStyle = g;
+          ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+      });
+    }
+
+    function createNebulae(center) {
+      const group = new THREE.Group();
+      for (let i = 0; i < 8; i++) {
+        const tex = makeNebulaSpriteTexture(1000 + i * 33);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: tex,
+          color: new THREE.Color('#b2deff'),
+          transparent: true,
+          opacity: 0.18,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }));
+        sprite.scale.set(
+          seededRange(200 + i * 9, mapRadius * 0.55, mapRadius * 1.05),
+          seededRange(300 + i * 7, mapRadius * 0.30, mapRadius * 0.62),
+          1
+        );
+        sprite.position.set(
+          center.x + seededRange(400 + i * 17, -mapRadius * 0.9, mapRadius * 0.9),
+          -42 + i * 2,
+          center.z + seededRange(500 + i * 13, -mapRadius * 0.7, mapRadius * 0.7)
+        );
+        group.add(sprite);
+      }
+      scene.add(group);
+      return group;
+    }
+
+    let nebulaGroup = null;
+
+    function computeBounds(list) {
+      const box = new THREE.Box3();
+      for (const sys of list) box.expandByPoint(positionForSystem(sys));
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const radius = Math.max(size.x, size.z, 340) * 0.72;
+      return { box, center, radius, size };
+    }
+
+    function normalizeGalaxyLayout(rawSystems) {
+      if (!Array.isArray(rawSystems) || !rawSystems.length) return [];
+
+      const systemsClone = rawSystems.map((sys) => ({ ...sys, x: Number(sys.x || 0), y: 0, z: Number(sys.z || 0) }));
+      const count = systemsClone.length;
+      const bounds = computeBounds(systemsClone);
+      const originalCenter = bounds.center.clone();
+      const desiredMinDistance = THREE.MathUtils.clamp(30 + Math.sqrt(90000 / Math.max(count, 1)), 34, 58);
+      const idealRadius = Math.max(320, desiredMinDistance * Math.sqrt(count) * 1.7);
+      const currentRadius = Math.max(bounds.radius, 1);
+      const radialScale = Math.max(1.0, idealRadius / currentRadius);
+
+      const nodes = systemsClone.map((sys, index) => {
+        const px = (sys.x - originalCenter.x) * radialScale;
+        const pz = (sys.z - originalCenter.z) * radialScale;
+        return {
+          index,
+          id: Number(sys.id || index + 1),
+          original: new THREE.Vector2(px, pz),
+          pos: new THREE.Vector2(px, pz),
+          pinStrength: sys.owner_player_id ? 0.022 : 0.018,
+        };
+      });
+
+      const temp = new THREE.Vector2();
+      for (let iter = 0; iter < 90; iter++) {
+        for (let i = 0; i < nodes.length; i++) {
+          const a = nodes[i];
+          for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j];
+            temp.copy(b.pos).sub(a.pos);
+            let dist = temp.length();
+            if (dist >= desiredMinDistance) continue;
+
+            if (dist < 0.001) {
+              const angle = ((a.id * 37 + b.id * 17 + iter * 13) % 360) * Math.PI / 180;
+              temp.set(Math.cos(angle), Math.sin(angle));
+              dist = 0.001;
+            } else {
+              temp.multiplyScalar(1 / dist);
+            }
+
+            const push = (desiredMinDistance - dist) * 0.52;
+            a.pos.addScaledVector(temp, -push);
+            b.pos.addScaledVector(temp, push);
+          }
+        }
+
+        for (const node of nodes) {
+          node.pos.lerp(node.original, node.pinStrength);
+        }
+      }
+
+      const newCenter = nodes.reduce((acc, node) => acc.add(node.pos), new THREE.Vector2()).multiplyScalar(1 / nodes.length);
+      const shiftX = originalCenter.x - newCenter.x;
+      const shiftZ = originalCenter.z - newCenter.y;
+
+      return systemsClone.map((sys, index) => ({
+        ...sys,
+        x: nodes[index].pos.x + shiftX,
+        y: 0,
+        z: nodes[index].pos.y + shiftZ,
+      }));
+    }
+
+    function createLabel(text, className) {
+      const div = document.createElement('div');
+      div.className = className;
+      div.innerHTML = text;
+      return new CSS2DObject(div);
+    }
+
+    function createSystemLabel(sys) {
+      const div = document.createElement('div');
+      div.className = 'label-system';
+
+      const isUnknown = sys.visibility === 'unknown';
+      const isDiscovered = sys.visibility === 'discovered';
+      const isSurveyed = sys.visibility === 'surveyed';
+
+      if (!isSurveyed) {
+        div.innerHTML = `
+      <div class="system-badge system-badge--unknown">
+        <div class="system-badge__name">${sys.name}</div>
+      </div>
+    `;
+        return new CSS2DObject(div);
+      }
+
+      const icon = sys.owner_player_id ? raceIconPath(sys) : '';
+      const hasIcon = !!icon;
+      const resourcesHtml = systemResourceMarkup(sys);
+
+      const isOwned = (sys.owner_player_id === playerId);
+      const badgeClass = isOwned ? 'system-badge--owned' : 'system-badge--neutral';
+
+      div.innerHTML = `
+    <div class="system-badge ${badgeClass}">
+      <div class="system-badge__top">
+        <div class="system-badge__icon ${hasIcon ? '' : 'system-badge__icon--empty'}">
+          ${hasIcon ? `<img src="${icon}" alt="">` : ''}
+        </div>
+        <div class="system-badge__name">${sys.name}</div>
+      </div>
+      ${resourcesHtml}
+    </div>
+  `;
+
+      return new CSS2DObject(div);
+    }
+
+    function systemVisual(sys) {
+      const owned = sys.owner_player_id === playerId;
+      const surveyed = sys.visibility === 'surveyed';
+      const discovered = sys.visibility === 'discovered';
+      const unknown = sys.visibility === 'unknown';
+
+      let color = hexColor(sys.color);
+      let opacity = 0.88;
+      let size = 3.2 + Math.min(1.15, Number(sys.scale || 1)) * 0.22;
+      let outerOpacity = 0.18;
+
+      if (unknown) {
+        color = new THREE.Color('#98a8bb');
+        opacity = 0.42;
+        size *= 0.94;
+        outerOpacity = 0.12;
+      } else if (discovered) {
+        color = new THREE.Color('#b8c5d4');
+        opacity = 0.64;
+        size *= 0.98;
+        outerOpacity = 0.14;
+      }
+
+      if (mode === 2) {
+        if (sys.owner_player_id) color = hexColor(ownerColors[String(sys.owner_player_id)] || '#8ecfff');
+        opacity = surveyed ? 0.88 : opacity;
+      } else if (mode === 3) {
+        color = sys.owner_player_id ? relationColor(sys.owner_player_id) : new THREE.Color('#b5d5e9');
+        opacity = surveyed ? 0.88 : opacity;
+      } else if (mode === 4) {
+        if (unknown) color = new THREE.Color('#505a67');
+        else if (discovered) color = new THREE.Color('#99a5b6');
+        else if (owned) color = new THREE.Color('#7de9ff');
+        else color = hexColor(sys.color).lerp(new THREE.Color('#d7f0ff'), 0.18);
+      } else if (mode === 5) {
+        color = new THREE.Color('#89daff');
+        opacity = surveyed ? 0.94 : opacity * 0.95;
+        outerOpacity = 0.18;
+      } else if (mode === 6) {
+        color = surveyed ? hexColor(sys.color).lerp(new THREE.Color('#ffffff'), 0.10) : color;
+        opacity = surveyed ? 0.78 : opacity;
+      }
+
+      if (owned) size *= 1.02;
+      return { color, opacity, size, outerOpacity, owned, surveyed, discovered, unknown };
+    }
+
+    async function addSystem(sys) {
+
+
+      const pos = positionForSystem(sys);
+      const visual = systemVisual(sys);
+      const starColor = systemStarColor(sys);
+
+      const group = new THREE.Group();
+      group.position.copy(pos);
+      group.userData = {
+        type: 'system',
+        id: sys.id,
+        baseSize: visual.size,
+        baseOpacity: visual.opacity,
+        name: sys.name,
+      };
+
+      const coreGeo = new THREE.SphereGeometry(visual.size * 0.5, 16, 16);
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: starColor,
+        emissive: starColor,
+        emissiveIntensity: 1.2,
+        roughness: 0.3,
+        metalness: 0.1,
+      });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      core.castShadow = false;
+      core.receiveShadow = false;
+      core.userData.parentGroup = group;
+      group.add(core);
+      const hitbox = new THREE.Mesh(
+        new THREE.SphereGeometry(visual.size * 1.2, 15, 15),
+        new THREE.MeshBasicMaterial({
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          depthTest: false,
+        })
+      );
+
+      hitbox.userData.parentGroup = group;
+      group.add(hitbox);
+      systemCores.push(hitbox);
+
+      const glowGeo = new THREE.SphereGeometry(visual.size * 0.8, 24, 24);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: starColor,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      group.add(glow);
+      group.userData.glow = glow;
+      const borderColor = systemStarBorderColor(sys);
+
+      const outline = new THREE.Mesh(
+        new THREE.SphereGeometry(visual.size * 0.62, 20, 20),
+        new THREE.MeshBasicMaterial({
+          color: borderColor,
+          transparent: true,
+          opacity: 0.55,
+          side: THREE.BackSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      outline.scale.setScalar(1.18);
+      group.add(outline);
+      group.userData.outline = outline;
+      const lineLength = 30;
+      const lineGeo = new THREE.CylinderGeometry(0.5, 0.5, lineLength, 8);
+      const lineMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const line = new THREE.Mesh(lineGeo, lineMat);
+      line.position.y = -lineLength / 2;
+      group.add(line);
+      group.userData.line = line;
+
+      scene.add(group);
+      starObjects.push(group);
+      systemById.set(sys.id, sys);
+
+      if (capitalSystemIds.has(sys.id) && sys.visibility !== 'unknown') {
+        const capital = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: ringTex,
+          color: new THREE.Color('#ffd66e'),
+          transparent: true,
+          opacity: 0.62,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }));
+        capital.scale.set(visual.size * 1.05, visual.size * 1.05, 1);
+        capital.position.copy(pos);
+        capital.position.y += 1.2;
+        scene.add(capital);
+        starObjects.push(capital);
+      }
+
+      const label = createSystemLabel(sys);
+      label.position.set(0, -(visual.size * 2.0), 0);
+      group.add(label);
+      labelObjects.push(label);
+      group.userData.label = label;
+
+      return group;
+    }
+
+    function filterVisibleHyperlanes(allLanes) {
+      if (!Array.isArray(allLanes) || !allLanes.length) return [];
+      const systemsById = new Map((systems || []).map((sys) => [Number(sys.id), sys]));
+      const normalized = [];
+      const seen = new Set();
+
+      for (const lane of allLanes) {
+        const from = Number(lane?.from);
+        const to = Number(lane?.to);
+        if (!from || !to || from === to) continue;
+        const key = from < to ? `${from}:${to}` : `${to}:${from}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const a = systemsById.get(from);
+        const b = systemsById.get(to);
+        if (!a || !b) continue;
+        const dx = Number(a.x || 0) - Number(b.x || 0);
+        const dz = Number(a.z || 0) - Number(b.z || 0);
+        normalized.push({ ...lane, from, to, distSq: dx * dx + dz * dz });
+      }
+
+      normalized.sort((lhs, rhs) => lhs.distSq - rhs.distSq || lhs.from - rhs.from || lhs.to - rhs.to);
+      return normalized;
+    }
+
+    function buildHyperlaneSegments(visibleLanes) {
+      const segments = [];
+      for (const lane of visibleLanes) {
+        const a = systemById.get(lane.from);
+        const b = systemById.get(lane.to);
+        if (!a || !b) continue;
+        const pa = positionForSystem(a);
+        const pb = positionForSystem(b);
+        segments.push(pa.x, pa.y, pa.z, pb.x, pb.y, pb.z);
+      }
+      if (!segments.length) return;
+
+      const geom = new LineSegmentsGeometry();
+      geom.setPositions(segments);
+
+      const mat = new LineMaterial({
+        color: 0x6fdfff,
+        transparent: true,
+        opacity: 0.24,
+        linewidth: 1.9,
+        dashed: false,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      });
+      mat.resolution.set(window.innerWidth, window.innerHeight);
+      const glowMat = new LineMaterial({
+        color: 0x9aeaff,
+        transparent: true,
+        opacity: 0.075,
+        linewidth: 4.2,
+        dashed: false,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      });
+      glowMat.resolution.set(window.innerWidth, window.innerHeight);
+
+      hyperlaneObject = new LineSegments2(geom, mat);
+      hyperlaneGlow = new LineSegments2(geom.clone(), glowMat);
+      hyperlaneGlow.renderOrder = 2;
+      hyperlaneObject.renderOrder = 3;
+      hyperlaneObject.userData.baseOpacity = mat.opacity;
+      hyperlaneGlow.userData.baseOpacity = glowMat.opacity;
+      scene.add(hyperlaneGlow);
+      scene.add(hyperlaneObject);
+      fatMaterials.push(mat, glowMat);
+    }
+
+    function smoothLoop(points) {
+      const curve = new THREE.CatmullRomCurve3(points, true, 'catmullrom', 0.12);
+      return curve.getPoints(180);
+    }
+
+    function makeCirclePolygon(center, radius, steps = 24) {
+      const out = [];
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        out.push(new THREE.Vector2(center.x + Math.cos(a) * radius, center.y + Math.sin(a) * radius));
+      }
+      return out;
+    }
+
+    function makeCapsulePolygon(a, b, radius, steps = 14) {
+      const dir = b.clone().sub(a).normalize();
+      const n = new THREE.Vector2(-dir.y, dir.x);
+      const out = [];
+      const angle = Math.atan2(dir.y, dir.x);
+      for (let i = 0; i <= steps; i++) {
+        const t = Math.PI / 2 + (i / steps) * Math.PI;
+        out.push(new THREE.Vector2(
+          a.x + Math.cos(t + angle) * radius,
+          a.y + Math.sin(t + angle) * radius
+        ));
+      }
+      for (let i = 0; i <= steps; i++) {
+        const t = -Math.PI / 2 + (i / steps) * Math.PI;
+        out.push(new THREE.Vector2(
+          b.x + Math.cos(t + angle) * radius,
+          b.y + Math.sin(t + angle) * radius
+        ));
+      }
+      return out;
+    }
+
+    function buildEmpireHull(points, empireSeed, padding = TERRAIN_PAD) {
+      const pts = points.map(p => new THREE.Vector2(p.x, p.z));
+      if (pts.length === 1) return makeCirclePolygon(pts[0], padding + 28, 30);
+      if (pts.length === 2) return makeCapsulePolygon(pts[0], pts[1], padding * 0.72, 18);
+
+      const centroid = pts.reduce((acc, p) => acc.add(p), new THREE.Vector2()).multiplyScalar(1 / pts.length);
+      const farthest = Math.max(...pts.map(p => p.distanceTo(centroid)));
+      const samples = 34;
+      let hull = [];
+
+      for (let i = 0; i < samples; i++) {
+        const ang = (i / samples) * Math.PI * 2;
+        const dir = new THREE.Vector2(Math.cos(ang), Math.sin(ang));
+        let best = farthest * 0.28;
+        for (const p of pts) {
+          const off = p.clone().sub(centroid);
+          const proj = off.dot(dir);
+          const perp = Math.abs(off.x * dir.y - off.y * dir.x);
+          const score = proj - perp * 0.46;
+          if (score > best) best = score;
+        }
+        let radius = Math.max(padding * 0.78, best + padding);
+        radius += Math.sin(ang * 3 + empireSeed * 0.37) * padding * 0.08;
+        radius += Math.cos(ang * 5 - empireSeed * 0.19) * padding * 0.05;
+        hull.push(centroid.clone().add(dir.multiplyScalar(radius)));
+      }
+
+      for (let pass = 0; pass < 2; pass++) {
+        hull = hull.map((p, i) => {
+          const prev = hull[(i - 1 + hull.length) % hull.length];
+          const next = hull[(i + 1) % hull.length];
+          return new THREE.Vector2(
+            prev.x * 0.22 + p.x * 0.56 + next.x * 0.22,
+            prev.y * 0.22 + p.y * 0.56 + next.y * 0.22,
+          );
+        });
+      }
+      return hull;
+    }
+
+    function shapeFromLoop(loop2d) {
+      const shape = new THREE.Shape();
+      shape.moveTo(loop2d[0].x, loop2d[0].y);
+      for (let i = 1; i < loop2d.length; i++) shape.lineTo(loop2d[i].x, loop2d[i].y);
+      shape.lineTo(loop2d[0].x, loop2d[0].y);
+      return shape;
+    }
+
+    function applyTerritoryColor(ownerId) {
+      if (mode === 3) return relationColor(ownerId);
+      const colorHex = ownerColors[String(ownerId)] || '#6bd4ff';
+      let col = hexColor(colorHex);
+      if (mode === 5) col = new THREE.Color('#89dcff');
+      if (mode === 6) col = col.clone().lerp(new THREE.Color('#ffffff'), 0.1);
+      return col;
+    }
+
+    function getRaceTerritoryColor(raceKey) {
+      if (raceKey === 'humans') return new THREE.Color('#4a8cff');
+      if (raceKey === 'zeth') return new THREE.Color('#ffd84a');
+      if (raceKey === 'lorians') return new THREE.Color('#ff9a3d');
+      return new THREE.Color('#88aaff');
+    }
+
+    function makeTerritoryFogTexture(hexColor = '#4a8cff') {
+      return makeCanvasTexture(512, (ctx, s) => {
+        ctx.clearRect(0, 0, s, s);
+
+        const g = ctx.createRadialGradient(s / 2, s / 2, s * 0.08, s / 2, s / 2, s * 0.5);
+        g.addColorStop(0.00, 'rgba(255,255,255,0.16)');
+        g.addColorStop(0.18, hexToRgba(hexColor, 0.13));
+        g.addColorStop(0.45, hexToRgba(hexColor, 0.08));
+        g.addColorStop(0.75, hexToRgba(hexColor, 0.04));
+        g.addColorStop(1.00, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, s, s);
+
+        for (let i = 0; i < 24; i++) {
+          const x = seededRange(i * 17 + 3, s * 0.18, s * 0.82);
+          const y = seededRange(i * 29 + 7, s * 0.18, s * 0.82);
+          const r = seededRange(i * 11 + 5, s * 0.05, s * 0.14);
+
+          const puff = ctx.createRadialGradient(x, y, 0, x, y, r);
+          puff.addColorStop(0.0, hexToRgba(hexColor, 0.08));
+          puff.addColorStop(0.55, hexToRgba(hexColor, 0.035));
+          puff.addColorStop(1.0, 'rgba(0,0,0,0)');
+          ctx.fillStyle = puff;
+          ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+      });
+    }
+
+    function hexToRgba(hex, alpha) {
+      const c = new THREE.Color(hex);
+      return `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${alpha})`;
+    }
+
+    function addTerritories() {
+      const byEmpire = new Map();
+
+      for (const sys of systems) {
+        if (!sys.owner_player_id || sys.visibility === 'unknown') continue;
+        if (!byEmpire.has(sys.owner_player_id)) byEmpire.set(sys.owner_player_id, []);
+        byEmpire.get(sys.owner_player_id).push(sys);
+      }
+
+      for (const [ownerId, ownedSystems] of byEmpire.entries()) {
+        const meta = playersMeta[String(ownerId)] || { name: `Empire ${ownerId}` };
+
+        let centerSystem =
+          ownedSystems.find(s => capitalSystemIds.has(s.id)) ||
+          ownedSystems[0];
+
+        if (!centerSystem) continue;
+
+        const centerPos = positionForSystem(centerSystem);
+
+        let radius = 95;
+        for (const sys of ownedSystems) {
+          const p = positionForSystem(sys);
+          const dx = p.x - centerPos.x;
+          const dz = p.z - centerPos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          radius = Math.max(radius, dist + 55);
+        }
+
+        const raceColor = getRaceTerritoryColor(meta.race_key || null);
+        const fogTexture = makeTerritoryFogTexture(`#${raceColor.getHexString()}`);
+
+        const group = new THREE.Group();
+        group.userData.ownerId = ownerId;
+        group.userData.raceKey = meta.race_key || null;
+
+        const circleGeom = new THREE.CircleGeometry(radius, 128);
+
+        const fill = new THREE.Mesh(
+          circleGeom,
+          new THREE.MeshBasicMaterial({
+            color: raceColor,
+            transparent: true,
+            opacity: mode === 6 ? 0.0 : 0.10,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        fill.rotation.x = -Math.PI / 2;
+        fill.position.set(centerPos.x, TERRITORY_Y, centerPos.z);
+        group.add(fill);
+
+        const fog = new THREE.Mesh(
+          circleGeom.clone(),
+          new THREE.MeshBasicMaterial({
+            map: fogTexture,
+            color: raceColor,
+            transparent: true,
+            opacity: mode === 6 ? 0.0 : 0.22,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        fog.rotation.x = -Math.PI / 2;
+        fog.position.set(centerPos.x, TERRITORY_Y + 0.8, centerPos.z);
+        group.add(fog);
+
+        const glow = new THREE.Mesh(
+          new THREE.CircleGeometry(radius * 1.03, 128),
+          new THREE.MeshBasicMaterial({
+            color: raceColor,
+            transparent: true,
+            opacity: mode === 6 ? 0.0 : 0.05,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+
+        glow.rotation.x = -Math.PI / 2;
+        glow.position.set(centerPos.x, TERRITORY_Y - 0.8, centerPos.z);
+        group.add(glow);
+
+        const borderPoints = [];
+        for (let i = 0; i <= 128; i++) {
+          const a = (i / 128) * Math.PI * 2;
+          borderPoints.push(
+            centerPos.x + Math.cos(a) * radius,
+            TERRITORY_Y + 1.2,
+            centerPos.z + Math.sin(a) * radius
+          );
+        }
+
+        const borderGeom = new LineGeometry();
+        borderGeom.setPositions(borderPoints);
+
+        const borderMat = new LineMaterial({
+          color: raceColor,
+          linewidth: mode === 5 ? 4.2 : 3.4,
+          transparent: true,
+          opacity: mode === 6 ? 0.0 : 0.78,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        borderMat.resolution.set(window.innerWidth, window.innerHeight);
+        fatMaterials.push(borderMat);
+
+        const border = new Line2(borderGeom, borderMat);
+        group.add(border);
+
+        const empireLabel = createLabel(
+          `<div class="empire-title">${meta.name}</div><div class="empire-sub">PLAYER EMPIRE</div>`,
+          'label-empire'
+        );
+        empireLabel.position.set(centerPos.x, TERRITORY_Y + 10, centerPos.z);
+        group.add(empireLabel);
+        empireLabelObjects.push(empireLabel);
+        group.userData = {
+          ownerId,
+          raceKey: meta.race_key || null,
+          fill,
+          fog,
+          glow,
+          border,
+          label: empireLabel
+        };
+
+        territoryGroups.push(group);
+        scene.add(group);
+      }
+    }
+
+    function addFleetMarkers() {
+      const grouped = new Map();
+
+      for (const f of fleets) {
+        if (!grouped.has(f.system_id)) grouped.set(f.system_id, []);
+        grouped.get(f.system_id).push(f);
+      }
+
+      fleetGroups = grouped;
+      fleetMarkerEntries = [];
+      fleetHitboxes = [];
+      fleetSprites = [];
+
+      const shipTextures = {};
+
+      function getShipTexture(type, variant) {
+        const key = `${type}_${variant}`;
+
+        if (!shipTextures[key]) {
+          let filename;
+
+          if (type === 'personal') {
+            if (variant === 1) filename = 'personal_1.png';
+            else if (variant === 2) filename = 'personal_2.png';
+            else if (variant === 3) filename = 'personal_3.png';
+            else filename = 'personal_1.png';
+          } else if (type === 'enemy') {
+            if (variant === 1) filename = 'enemy_1.png';
+            else if (variant === 2) filename = 'enemy_2.png';
+            else if (variant === 3) filename = 'enemy_3.png';
+            else filename = 'enemy_1.png';
+          } else {
+            if (variant === 1) filename = 'unknown_1.png';
+            else if (variant === 2) filename = 'unknown_2.png';
+            else if (variant === 3) filename = 'unknown_3.png';
+            else filename = 'necun_corab.png';
+          }
+
+          const path = `../assets/icons/fleet/${filename}?v=2`;
+          const texture = new THREE.TextureLoader().load(path);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          shipTextures[key] = texture;
+        }
+
+        return shipTextures[key];
+      }
+
+      for (const [systemId, items] of grouped.entries()) {
+        const sys = systemById.get(systemId);
+        if (!sys || sys.visibility === 'unknown') continue;
+
+        const basePos = positionForSystem(sys);
+        const visual = systemVisual(sys);
+        const starBorderColor = systemStarBorderColor(sys);
+
+        const fleetGroup = new THREE.Group();
+        fleetGroup.position.set(basePos.x, 0, basePos.z);
+
+        items.forEach((fleet) => {
+          let type;
+
+          if (fleet.player_id === playerId) {
+            type = 'personal';
+          } else if (fleet.player_id && fleet.player_id !== playerId) {
+            type = 'enemy';
+          } else {
+            type = 'unknown';
+          }
+
+          const variant = String(fleet.ship_variant || '').trim().toLowerCase();
+
+          let variantNum = 1;
+          if (variant === 'medium') {
+            variantNum = 2;
+          } else if (variant === 'heavy') {
+            variantNum = 3;
+          } else {
+            variantNum = 1;
+          }
+
+          const texture = getShipTexture(type, variantNum);
+
+          const shipWrap = new THREE.Group();
+
+          const outlineMat = new THREE.SpriteMaterial({
+            map: texture,
+            color: starBorderColor,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+
+          const outline = new THREE.Sprite(outlineMat);
+          outline.scale.set(8.2, 8.2, 1);
+          shipWrap.add(outline);
+
+          const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+
+          const sprite = new THREE.Sprite(material);
+          sprite.scale.set(7.1, 7.1, 1);
+          shipWrap.add(sprite);
+
+          const fleetHitbox = new THREE.Mesh(
+            new THREE.PlaneGeometry(9, 9),
+            new THREE.MeshBasicMaterial({
+              transparent: true,
+              opacity: 0,
+              depthWrite: false,
+              depthTest: false,
+              side: THREE.DoubleSide,
+            })
+          );
+
+          fleetHitbox.userData = {
+            type: 'fleet',
+            fleetId: fleet.id,
+            shipWrap,
+            selectable: fleet.player_id === playerId,
+          };
+
+          shipWrap.add(fleetHitbox);
+          fleetHitboxes.push(fleetHitbox);
+
+          shipWrap.userData = {
+            type: 'fleet',
+            fleetId: fleet.id,
+            systemId: fleet.system_id,
+            playerId: fleet.player_id,
+            selectable: fleet.player_id === playerId,
+            outline,
+            sprite
+          };
+
+          fleetSprites.push(shipWrap);
+
+          fleet.__markerWrap = shipWrap;
+          fleetGroup.add(shipWrap);
+        });
+
+        scene.add(fleetGroup);
+        starObjects.push(fleetGroup);
+
+        fleetMarkerEntries.push({
+          group: fleetGroup,
+          items,
+          sys,
+          visual,
+        });
+      }
+
+      updateFleetMarkersLayout();
+      refreshFleetSelectionVisuals();
+    }
+
+
+    function updateFleetMarkersLayout() {
+      if (!fleetMarkerEntries || !fleetMarkerEntries.length) return;
+
+      const cameraRight = new THREE.Vector3();
+      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+
+      const right = cameraRight.clone();
+      const up = new THREE.Vector3(0, 1, 0);
+
+      for (const entry of fleetMarkerEntries) {
+        const basePos = positionForSystem(entry.sys);
+        entry.group.position.set(basePos.x, 0, basePos.z);
+
+        const sideOffset = entry.visual.size * 1.3 + 7.5;
+        const gap = 7;
+        const lift = 2.5;
+
+        entry.items.forEach((fleet, index) => {
+          const shipWrap = fleet.__markerWrap;
+          if (!shipWrap) return;
+
+          const pos = right.clone().multiplyScalar(sideOffset + index * gap);
+          pos.add(up.clone().multiplyScalar(lift));
+
+          shipWrap.position.copy(pos);
+          shipWrap.lookAt(camera.position);
+        });
+      }
+    }
+    function updateTerritoryMode() {
+      for (const group of territoryGroups) {
+        const ownerId = group.userData.ownerId;
+        const raceKey = group.userData.raceKey;
+
+        const baseColor = getRaceTerritoryColor(raceKey);
+
+        let finalColor;
+        if (mode === 3) {
+          finalColor = relationColor(ownerId);
+        } else {
+          finalColor = baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.1);
+        }
+
+        group.userData.fill.material.color.copy(finalColor);
+        group.userData.glow.material.color.copy(finalColor);
+        group.userData.border.material.color.copy(finalColor);
+        if (group.userData.fog) {
+          group.userData.fog.material.color.copy(finalColor);
+        }
+        group.userData.fill.material.opacity = !showBorders || mode === 6 ? 0.0 : (mode === 5 ? 0.16 : 0.11);
+        group.userData.glow.material.opacity = !showBorders || mode === 6 ? 0.0 : (mode === 5 ? 0.09 : 0.06);
+
+        if (group.userData.fog) {
+          group.userData.fog.material.opacity = !showBorders || mode === 6 ? 0.0 : (mode === 5 ? 0.34 : 0.26);
+        }
+
+        group.userData.border.material.opacity = !showBorders || mode === 6 ? 0.0 : (mode === 5 ? 0.88 : 0.72);
+        group.userData.border.material.linewidth = mode === 5 ? 4.4 : 3.4;
+
+        const label = group.userData.label;
+        if (label) {
+          label.element.style.display = (showLabels && mode !== 6) ? 'block' : 'none';
+        }
+      }
+    }
+    function refreshFleetSelectionVisuals() {
+      for (const shipWrap of fleetSprites) {
+        const isSelected = selectedFleetIds.has(shipWrap.userData.fleetId);
+        if (shipWrap.userData.outline) {
+          shipWrap.userData.outline.material.opacity = isSelected ? 1.0 : 0.55;
+          shipWrap.userData.outline.scale.set(
+            isSelected ? 9.4 : 8.2,
+            isSelected ? 9.4 : 8.2,
+            1
+          );
+        }
+      }
+    }
+
+    function clearFleetSelection() {
+      selectedFleetIds.clear();
+      refreshFleetSelectionVisuals();
+    }
+
+    function selectFleetOnly(fleetId) {
+      selectedFleetIds.clear();
+      selectedFleetIds.add(fleetId);
+      refreshFleetSelectionVisuals();
+    }
+
+    function toggleFleetSelection(fleetId) {
+      if (selectedFleetIds.has(fleetId)) selectedFleetIds.delete(fleetId);
+      else selectedFleetIds.add(fleetId);
+      refreshFleetSelectionVisuals();
+    }
+
+    function selectAllPlayerFleets() {
+      selectedFleetIds.clear();
+      for (const shipWrap of fleetSprites) {
+        if (shipWrap.userData.selectable) {
+          selectedFleetIds.add(shipWrap.userData.fleetId);
+        }
+      }
+      refreshFleetSelectionVisuals();
+    }
+
+    function updateSystemMode() {
+      for (const obj of starObjects) {
+        if (obj.userData.type !== 'system') continue;
+        const sys = systemById.get(obj.userData.id);
+        if (!sys) continue;
+        const visual = systemVisual(sys);
+        const isHovered = hoveredObject === obj;
+        const isSelected = selectedObject === obj;
+        const distanceFactor = getDistanceFactor(obj.position);
+
+        const core = obj.children.find(child => child.geometry && child.geometry.type === 'SphereGeometry' && child.material.emissive);
+        if (core) {
+          core.material.emissiveIntensity = 1.2 + (isHovered || isSelected ? 0.3 : 0);
+        }
+
+        const glow = obj.userData.glow;
+        if (glow) {
+          glow.scale.setScalar(1 + 0.2 * Math.sin(performance.now() * 0.003 + obj.userData.id));
+          glow.material.opacity = 0.25 * (0.8 + 0.2 * Math.sin(performance.now() * 0.002 + obj.userData.id));
+        }
+        const outline = obj.userData.outline;
+        if (outline) {
+          outline.scale.setScalar(1.14 + 0.05 * Math.sin(performance.now() * 0.0025 + obj.userData.id));
+          outline.material.opacity = (isHovered || isSelected) ? 0.82 : 0.55;
+        }
+        const line = obj.userData.line;
+        if (line) {
+          const lineVisible = distanceFactor > 0.6 && !(mode === 6 && !isHovered && !isSelected);
+          line.visible = lineVisible;
+          if (lineVisible) {
+            line.material.opacity = 0.4 * distanceFactor;
+          }
+        }
+
+        if (obj.userData.label) {
+          const distToCam = camera.position.distanceTo(obj.position);
+
+          const showDistance = distToCam < controls.maxDistance * 0.6;
+          const shouldShow = showLabels &&
+            showDistance &&
+            sys.visibility !== 'unknown' &&
+            (mode !== 6 || isHovered || isSelected);
+
+          const labelOffsetY = - (visual.size * 5.5);
+          obj.userData.label.position.set(0, labelOffsetY, 0);
+
+          obj.userData.label.element.style.display = shouldShow ? 'block' : 'none';
+          obj.userData.label.element.style.opacity = isSelected ? '1' : '0.94';
+        }
+      }
+      updateSelectionHex();
+    }
+
+    function updateHyperlaneMode() {
+      if (!hyperlaneObject || !hyperlaneGlow) return;
+      const visible = showHyperlanes && mode !== 6;
+      hyperlaneObject.visible = visible;
+      hyperlaneGlow.visible = visible;
+      const mainMat = hyperlaneObject.material;
+      const glowMat = hyperlaneGlow.material;
+      if (mode === 5) {
+        mainMat.opacity = 0.34;
+        mainMat.linewidth = 2.8;
+        glowMat.opacity = 0.10;
+        glowMat.linewidth = 5.4;
+      } else if (mode === 3) {
+        mainMat.opacity = 0.28;
+        mainMat.linewidth = 2.2;
+        glowMat.opacity = 0.085;
+        glowMat.linewidth = 4.8;
+      } else {
+        mainMat.opacity = 0.24;
+        mainMat.linewidth = 1.9;
+        glowMat.opacity = 0.075;
+        glowMat.linewidth = 4.2;
+      }
+      hyperlaneObject.userData.baseOpacity = mainMat.opacity;
+      hyperlaneGlow.userData.baseOpacity = glowMat.opacity;
+    }
+
+    function updateModeUI() {
+      for (const btn of modesEl.querySelectorAll('.mode-btn')) {
+        btn.classList.toggle('active', Number(btn.dataset.mode) === mode);
+      }
+    }
+
+    function setMode(nextMode) {
+      mode = Math.max(1, Math.min(6, Number(nextMode) || 1));
+      updateModeUI();
+      updateTerritoryMode();
+      updateHyperlaneMode();
+      updateSystemMode();
+      updateHoverCard(hoveredObject ? systemById.get(hoveredObject.userData.id) : null);
+    }
+
+    function buildModeButtons() {
+      modesEl.innerHTML = '';
+      for (const m of MODE_DEFS) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mode-btn' + (m.id === mode ? ' active' : '');
+        btn.dataset.mode = String(m.id);
+        btn.textContent = `${m.id}. ${m.name}`;
+        btn.addEventListener('click', () => setMode(m.id));
+        modesEl.appendChild(btn);
+      }
+    }
+
+    async function fetchGalaxy() {
+      const res = await fetch(`/game/api/session/${sessionId}/galaxy?player=${playerId}`, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      return res.json();
+    }
+
+    function frameGalaxy() {
+      controls.target.copy(mapCenter);
+      camera.position.set(mapCenter.x + mapRadius * 0.34, mapCenter.y + mapRadius * 1.05, mapCenter.z + mapRadius * 0.58);
+      camera.lookAt(mapCenter);
+      controls.update();
+    }
+
+    function applyWheelZoom(deltaY) {
+      const offset = camera.position.clone().sub(controls.target);
+      const currentDistance = offset.length();
+      if (!currentDistance) return;
+
+      const zoomFactor = Math.exp(deltaY * 0.0012);
+      const nextDistance = THREE.MathUtils.clamp(currentDistance * zoomFactor, controls.minDistance, controls.maxDistance);
+      if (Math.abs(nextDistance - currentDistance) < 0.001) return;
+
+      offset.setLength(nextDistance);
+      camera.position.copy(controls.target.clone().add(offset));
+      controls.update();
+    }
+
+    function updateHoverCard(sys) {
+      if (!sys) {
+        hoverCard.classList.remove('visible');
+        return;
+      }
+      const owner = sys.owner_player_id ? (playersMeta[String(sys.owner_player_id)]?.name || `Empire ${sys.owner_player_id}`) : 'Neutral';
+      const f = fleetGroups.get(sys.id) || [];
+      hoverTitle.textContent = sys.visibility === 'unknown' ? 'Unknown System' : sys.name;
+      hoverSub.textContent = sys.visibility === 'unknown' ? 'Insufficient data for detailed scanning' : `${sys.visibility === 'surveyed' ? 'Star System' : 'Detected Contact'}${capitalSystemIds.has(sys.id) ? ' · capital' : ''}`;
+      hoverOwner.textContent = owner;
+      hoverVisibility.textContent = visibilityLabel(sys.visibility);
+      hoverThreat.textContent = sys.threat ? `Level ${sys.threat}` : 'Low';
+      hoverFleet.textContent = f.length ? `${f.length} (${f.reduce((n, it) => n + (it.power || 0), 0)} power)` : 'None';
+      hoverCard.classList.add('visible');
+    }
+
+    function onPointerMove(ev) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    }
+    function getSystemFromEvent(ev) {
+      const rect = renderer.domElement.getBoundingClientRect();
+
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const hits = raycaster.intersectObjects(systemCores, false);
+      if (!hits.length) return null;
+
+      return hits[0].object.userData.parentGroup || null;
+    }
+    function getFleetFromEvent(ev) {
+      const rect = renderer.domElement.getBoundingClientRect();
+
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const hits = raycaster.intersectObjects(fleetHitboxes, false);
+      if (!hits.length) return null;
+
+      return hits[0].object || null;
+    }
+async function onClick(ev) {
+  const fleetHit = getFleetFromEvent(ev);
+  if (fleetHit) {
+    const fleetId = fleetHit.userData.fleetId;
+    if (!fleetHit.userData.selectable) return;
+
+    if (ev.shiftKey) {
+      selectAllPlayerFleets();
+      return;
+    }
+
+    if (ev.ctrlKey || ev.metaKey) {
+      toggleFleetSelection(fleetId);
+      return;
+    }
+
+    selectFleetOnly(fleetId);
+    return;
+  }
+
+  const target = getSystemFromEvent(ev);
+  if (!target) return;
+
+  const sys = systemById.get(target.userData.id);
+  if (!sys) return;
+
+  const hasSelectedFleet = selectedFleetIds && selectedFleetIds.size > 0;
+
+  if (hasSelectedFleet) {
+    saveSelectedSystem(sys.id);
+    saveGalaxyView();
+    await moveSelectedFleetsToSystem(sys.id);
+    return;
+  }
+
+  selectSystemObject(target);
+  saveSelectedSystem(sys.id);
+  saveGalaxyView();
+}
+    async function moveSelectedFleetsToSystem(targetSystemId) {
+      if (!selectedFleetIds.size) return;
+
+      const res = await fetch(`/game/api/session/${sessionId}/galaxy/move-fleets`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          player: playerId,
+          fleet_ids: Array.from(selectedFleetIds),
+          target_star_system_id: targetSystemId,
+        }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (e) {
+        console.error('MOVE RESPONSE IS NOT JSON', e);
+      }
+
+      if (!res.ok || !data?.ok) {
+        console.error('MOVE ERROR:', res.status, data);
+        return;
+      }
+
+      saveSelectedSystem(targetSystemId);
+      saveGalaxyView();
+
+      const galaxyData = await fetchGalaxy();
+      await buildScene(galaxyData);
+    }
+
+    function onDoubleClick(ev) {
+      const target = getSystemFromEvent(ev) || selectedObject;
+      if (!target) return;
+
+      const sys = systemById.get(target.userData.id);
+      if (!sys) return;
+
+      saveSelectedSystem(sys.id);
+      saveGalaxyView();
+      startCameraFlight(target);
+      startSceneTransition('Entering System');
+
+      setTimeout(() => {
+        if (EMBED) {
+          window.parent?.postMessage({ type: 'goSystem', systemId: sys.id }, '*');
+          return;
+        }
+
+        window.location.href = `/game/session/${sessionId}/system/${sys.id}`;
+      }, 520);
+    }
+    async function onContextMenu(ev) {
+      ev.preventDefault();
+
+      if (!selectedFleetIds.size) return;
+
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(systemCores, false);
+      if (!hits.length) return;
+
+      const sys = systemById.get(hits[0].object.userData.parentGroup.userData.id);
+      if (!sys) return;
+
+      await moveSelectedFleetsToSystem(sys.id);
+    }
+    function updateRaycast() {
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(systemCores, false);
+
+      if (hits.length > 0) {
+        const core = hits[0].object;
+        const next = core.userData.parentGroup;
+
+        hoveredObject = next;
+        renderer.domElement.style.cursor = 'pointer';
+        labelRenderer.domElement.style.cursor = 'pointer';
+
+        updateSystemMode();
+        updateHoverCard(systemById.get(hoveredObject.userData.id));
+      } else {
+        hoveredObject = null;
+        renderer.domElement.style.cursor = 'default';
+        labelRenderer.domElement.style.cursor = 'default';
+
+        updateSystemMode();
+        updateHoverCard(null);
+      }
+    }
+
+    function updateDynamicVisibility() {
+      const distance = camera.position.distanceTo(controls.target);
+      const showEmpireLabels = showLabels && mode !== 6 && distance < mapRadius * 2.1;
+      const showFleetLabels = distance < mapRadius * 1.8;
+
+      for (const label of empireLabelObjects) label.element.style.display = showEmpireLabels ? 'block' : 'none';
+      for (const label of fleetLabelObjects) label.element.style.display = showFleetLabels ? 'block' : 'none';
+    }
+
+    function registerHotkeys() {
+      window.addEventListener('keydown', (e) => {
+        const n = Number(e.key);
+        if (n >= 1 && n <= 6) {
+          setMode(n);
+          return;
+        }
+        if (e.code === 'KeyH') {
+          showHyperlanes = !showHyperlanes;
+          updateHyperlaneMode();
+        } else if (e.code === 'KeyB') {
+          showBorders = !showBorders;
+          updateTerritoryMode();
+        } else if (e.code === 'KeyL') {
+          showLabels = !showLabels;
+          updateTerritoryMode();
+          updateSystemMode();
+        }
+      });
+
+      window.addEventListener('message', (event) => {
+        if (!event?.data || typeof event.data !== 'object') return;
+        if (event.data.type === 'setMode') setMode(event.data.mode);
+      });
+    }
+
+    async function buildScene(data) {
+      clearDynamicObjects();
+      systems = normalizeGalaxyLayout(data.systems || []);
+      lanes = filterVisibleHyperlanes(data.hyperlanes || []);
+      fleets = data.fleets || [];
+      relations = data.relations || {};
+      ownerColors = data.ownerColors || {};
+      playersMeta = data.playersMeta || {};
+      for (const meta of Object.values(playersMeta)) {
+        if (meta.home_star_system_id) capitalSystemIds.add(meta.home_star_system_id);
+      }
+
+      const bounds = computeBounds(systems);
+      mapCenter.copy(bounds.center);
+      mapRadius = Math.max(bounds.radius, 520);
+
+      if (backgroundGroup?.parent) scene.remove(backgroundGroup);
+      if (nebulaGroup?.parent) scene.remove(nebulaGroup);
+      backgroundGroup = createBackgroundField(mapCenter);
+      nebulaGroup = createNebulae(mapCenter);
+
+      for (const sys of systems) await addSystem(sys);
+      addTerritories();
+      buildHyperlaneSegments(lanes);
+      addFleetMarkers();
+
+      frameGalaxy(); // default camera frame
+
+      setMode(mode);
+
+      // after the scene is built
+      setTimeout(() => {
+        restoreGalaxyView();
+      }, 0);
+    }
+
+    async function init() {
+      buildModeButtons();
+      registerHotkeys();
+
+      const interactionLayer = labelRenderer.domElement;
+      interactionLayer.addEventListener('pointermove', onPointerMove, { passive: true });
+      interactionLayer.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        applyWheelZoom(event.deltaY);
+      }, { passive: false });
+      renderer.domElement.addEventListener('click', onClick);
+      renderer.domElement.addEventListener('dblclick', onDoubleClick);
+      interactionLayer.addEventListener('contextmenu', onContextMenu);
+
+      const data = await fetchGalaxy();
+      await buildScene(data);
+      loaderEl.classList.add('hidden');
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const t = clock.getElapsedTime();
+
+      if (backgroundGroup) {
+        backgroundGroup.rotation.y = Math.sin(t * 0.03) * 0.02;
+      }
+
+      if (nebulaGroup) {
+        nebulaGroup.children.forEach((s, idx) => {
+          s.position.x += Math.sin(t * 0.08 + idx * 1.37) * 0.03;
+          s.position.z += Math.cos(t * 0.06 + idx * 0.91) * 0.03;
+          s.material.opacity = 0.12 + Math.sin(t * 0.28 + idx * 1.7) * 0.03;
+        });
+      }
+
+      if (hyperlaneGlow) {
+        const baseOpacity = hyperlaneGlow.userData?.baseOpacity ?? 0.075;
+        hyperlaneGlow.material.opacity = baseOpacity + Math.sin(t * 1.25) * 0.01;
+      }
+
+      if (cameraFlight) {
+        const progress = Math.min(1, (performance.now() - cameraFlight.start) / cameraFlight.duration);
+        const eased = easeInOutCubic(progress);
+        camera.position.lerpVectors(cameraFlight.startCamera, cameraFlight.endCamera, eased);
+        controls.target.lerpVectors(cameraFlight.startTarget, cameraFlight.endTarget, eased);
+        if (progress >= 1) cameraFlight = null;
+      }
+
+      controls.update();
+      updateRaycast();
+      updateSystemMode();
+      updateDynamicVisibility();
+      updateFleetMarkersLayout();
+
+      composer.render();
+      labelRenderer.render(scene, camera);
+    }
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      fxaa.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
+      fatMaterials.forEach(m => m.resolution?.set(window.innerWidth, window.innerHeight));
+    });
+
+    init().catch((err) => {
+      console.error(err);
+      loaderEl.querySelector('.sub').textContent = 'Unable to load the galaxy map. Check the /game/api/session/.../galaxy endpoint.';
+    });
+    animate();
+  </script>
+</body>
+
+</html>
